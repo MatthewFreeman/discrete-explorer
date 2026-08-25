@@ -1099,6 +1099,7 @@
                 primaryNav: [
                     { name: "home", label: "Overview", icon: "fa-chart-line" },
                     { name: "charts", label: "Charts", icon: "fa-chart-area" },
+                    { name: "emission", label: "Emission", icon: "fa-coins", href: "/emission/" },
                     { name: "nodes", label: "Nodes", icon: "fa-server" },
                     { name: "alt-blocks", label: "Alt blocks", icon: "fa-code-branch" },
                     { name: "tools", label: "Tools", icon: "fa-th-large" },

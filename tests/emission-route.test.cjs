@@ -6,6 +6,11 @@ const test = require("node:test");
 
 const root = path.join(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+const readEmissionChunks = () =>
+    fs.readdirSync(path.join(root, "emission", "_next", "static", "chunks"))
+        .filter((name) => name.endsWith(".js"))
+        .map((name) => read(path.join("emission", "_next", "static", "chunks", name)))
+        .join("\n");
 
 test("exposes Emission as a dedicated same-origin explorer tab", function () {
     const index = read("index.html");
@@ -34,6 +39,20 @@ test("ships a self-contained official-domain emission export", function () {
     }
 
     assert.equal(fs.existsSync(path.join(root, ".nojekyll")), true);
+});
+
+test("anchors Today to the live Discrete chain tip", function () {
+    const html = read("emission/index.html");
+    const chunks = readEmissionChunks();
+
+    assert.match(html, /Actual chain tip/);
+    assert.match(html, />Today</);
+    assert.match(chunks, /https:\/\/seed1\.discrete\.cash:9332/);
+    assert.match(chunks, /https:\/\/seed2\.discrete\.cash:9332/);
+    assert.match(chunks, /getblockheaderbyheight/);
+    assert.match(chunks, /already_generated_coins/);
+    assert.match(chunks, /next_reward/);
+    assert.match(chunks, /let \w+=\w+-1,\w+=await [\s\S]{0,300}?getblockheaderbyheight/);
 });
 
 test("preserves the reviewed 120-month CSV artifact", function () {

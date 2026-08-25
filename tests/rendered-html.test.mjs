@@ -238,6 +238,40 @@ test("includes accessible navigation and chart controls", async () => {
   assert.match(css, /#unified-chart\s*\{[^}]*scroll-margin-top:/is);
 });
 
+test("anchors Today markers and exact readout to the live chain tip", async () => {
+  const [response, liveSource, chartSource, reportSource, css] = await Promise.all([
+    render(),
+    readFile(new URL("../app/live-chain.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/InteractiveCharts.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/EmissionReport.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const html = await response.text();
+
+  assert.match(liveSource, /https:\/\/seed1\.discrete\.cash:9332/);
+  assert.match(liveSource, /https:\/\/seed2\.discrete\.cash:9332/);
+  assert.match(liveSource, /const tipHeight = chainHeight - 1/);
+  assert.match(liveSource, /method: "getblockheaderbyheight"/);
+  assert.match(liveSource, /info\.already_generated_coins/);
+  assert.match(liveSource, /info\.next_reward/);
+  assert.match(
+    liveSource,
+    /Math\.floor\(\s*\(tipHeight - 1\) \/ emissionData\.meta\.blocksPerProtocolMonth/,
+  );
+  assert.match(liveSource, /minerIssuanceAtoms \+ treasuryUnlockedAtoms/);
+  assert.match(chartSource, /blockX\(liveTip\.tipHeight\)/);
+  assert.match(chartSource, /className="live-tip-marker"/);
+  assert.match(chartSource, /TODAY · \{liveDateLabel\(liveTip\)\.toUpperCase\(\)\}/);
+  assert.match(reportSource, /Generated supply at tip/);
+  assert.match(reportSource, /Treasury scheduled available/);
+  assert.match(reportSource, /Height, generated supply, timestamp, and next reward come from the live node/);
+  assert.match(html, /Actual chain tip/i);
+  assert.equal((html.match(/Connecting to RPC/g) ?? []).length, 2);
+  assert.match(css, /\.live-tip-marker line/);
+  assert.match(css, /\.live-tip-readout/);
+  assert.match(css, /\.today-button/);
+});
+
 test("keeps the yearly emission table compact without dropping exact data", async () => {
   const [response, css] = await Promise.all([
     render(),
@@ -304,7 +338,7 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.match(source, /const mobileDisplayedOverlayPoints = mobileOverlayPoints\.slice\(1\)/);
   assert.match(source, /const mobileOverlayPath = linePath\(mobileDisplayedOverlayPoints\)/);
   assert.equal(
-    (source.match(/onMouseEnter=\{\(\) => (?:onSelect|setSelectedMonthIndex)\(index\)\}/g) ?? []).length,
+    (source.match(/onMouseEnter=\{\(\) => (?:onSelect|selectMonth)\(index\)\}/g) ?? []).length,
     2,
     "both desktop charts must follow the hovered month while mobile remains tap-only",
   );
@@ -343,7 +377,10 @@ test("shows boundary unlocks in the following protocol month", async () => {
     /year-selector-shell/,
   );
   assert.doesNotMatch(reportSource, /<TreasuryExplorer[\s\S]*?selectedYearIndex=|onInspectYear=/);
-  assert.match(reportSource, /<TreasuryExplorer\s*\/>/);
+  assert.match(
+    reportSource,
+    /<TreasuryExplorer[\s\S]*?liveTip=\{liveChain\.snapshot\}[\s\S]*?\/>/,
+  );
   assert.notEqual(
     year1.months[2].treasuryUnlockedEndXds,
     year1.months[1].treasuryUnlockedEndXds,

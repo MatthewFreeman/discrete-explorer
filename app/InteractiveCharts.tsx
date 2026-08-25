@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import emissionData from "@/data/emission-decade.json";
+import type { LiveChainSnapshot, LiveChainState } from "./live-chain";
 
 type YearData = (typeof emissionData.years)[number];
 export type ChartOverlay = "unlocked" | "reward";
@@ -59,18 +60,35 @@ const linePath = (points: Array<{ x: number; y: number }>) =>
     .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
     .join(" ");
 
+const liveDateLabel = (snapshot: LiveChainSnapshot) =>
+  new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(snapshot.tipTimestamp));
+
+type LiveControl = {
+  active: boolean;
+  detail: string;
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+};
+
 function MonthNavigator({
   id,
   label,
   value,
   period,
   onChange,
+  liveControl,
 }: {
   id: string;
   label: string;
   value: number;
   period: string;
   onChange: (index: number) => void;
+  liveControl: LiveControl;
 }) {
   return (
     <div
@@ -86,23 +104,36 @@ function MonthNavigator({
       >
         ← <span>Previous</span>
       </button>
-      <label className="month-navigator-current" htmlFor={id}>
-        <span>Protocol month</span>
-        <select
-          id={id}
-          value={value}
-          aria-label={`Select ${label.toLowerCase()} protocol month`}
-          aria-describedby={`${id}-period`}
-          onChange={(event) => onChange(Number(event.target.value))}
+      <div className="month-navigator-center">
+        <label className="month-navigator-current" htmlFor={id}>
+          <span>Protocol month</span>
+          <select
+            id={id}
+            value={value}
+            aria-label={`Select ${label.toLowerCase()} protocol month`}
+            aria-describedby={`${id}-period`}
+            onChange={(event) => onChange(Number(event.target.value))}
+          >
+            {Array.from({ length: 12 }, (_, index) => (
+              <option key={index} value={index}>
+                M{index + 1} of 12
+              </option>
+            ))}
+          </select>
+          <small id={`${id}-period`} title={period}>{period}</small>
+        </label>
+        <button
+          className="today-button"
+          type="button"
+          data-active={liveControl.active}
+          aria-pressed={liveControl.active}
+          disabled={liveControl.disabled}
+          onClick={liveControl.onClick}
         >
-          {Array.from({ length: 12 }, (_, index) => (
-            <option key={index} value={index}>
-              M{index + 1} of 12
-            </option>
-          ))}
-        </select>
-        <small id={`${id}-period`} title={period}>{period}</small>
-      </label>
+          <span>{liveControl.label}</span>
+          <small>{liveControl.detail}</small>
+        </button>
+      </div>
       <button
         type="button"
         onClick={() => onChange(Math.min(11, value + 1))}
@@ -122,6 +153,10 @@ export function CombinedEmissionChart({
   lineMetric,
   onLineMetricChange,
   yearControls,
+  liveTip,
+  liveStatus,
+  onSelectToday,
+  onRefreshLive,
 }: {
   year: YearData;
   selectedIndex: number;
@@ -129,6 +164,10 @@ export function CombinedEmissionChart({
   lineMetric: ChartOverlay;
   onLineMetricChange: (metric: ChartOverlay) => void;
   yearControls: ReactNode;
+  liveTip: LiveChainSnapshot | null;
+  liveStatus: LiveChainState["status"];
+  onSelectToday: () => void;
+  onRefreshLive: () => void;
 }) {
   const rows = year.months;
   const treasuryTotal = Number(emissionData.meta.treasuryReserve.totalXds);
@@ -188,6 +227,49 @@ export function CombinedEmissionChart({
       ((blockHeight - year.blockStart + 1) / year.blocks) * plotWidth
     );
   };
+  const liveX =
+    liveTip && liveTip.yearIndex === year.year - 1
+      ? blockX(liveTip.tipHeight)
+      : null;
+  const liveOverlayValue = liveTip
+    ? Number(
+        lineMetric === "reward"
+          ? liveTip.nextRewardXds
+          : liveTip.minedPlusScheduledUnlockedXds,
+      )
+    : null;
+  const liveOverlayY =
+    liveX !== null && liveOverlayValue !== null
+      ? Math.max(top, Math.min(bottom, overlayY(liveOverlayValue)))
+      : null;
+  const liveMarkerLabelX =
+    liveX === null
+      ? left
+      : Math.max(left + 4, Math.min(liveX + 7, width - right - 112));
+  const liveControl: LiveControl = liveTip
+    ? liveTip.withinModel
+      ? {
+          active:
+            liveTip.yearIndex === year.year - 1 && liveTip.monthIndex === selectedIndex,
+          detail: `${liveDateLabel(liveTip)} · H ${formatInteger(liveTip.tipHeight)}`,
+          disabled: false,
+          label: "Today",
+          onClick: onSelectToday,
+        }
+      : {
+          active: false,
+          detail: "Outside 10-year model",
+          disabled: true,
+          label: "Today",
+          onClick: onSelectToday,
+        }
+    : {
+        active: false,
+        detail: liveStatus === "error" ? "RPC unavailable" : "Connecting to RPC",
+        disabled: liveStatus !== "error",
+        label: liveStatus === "error" ? "Retry live" : "Today",
+        onClick: onRefreshLive,
+      };
 
   const equalityStart = blockX(emissionData.meta.tailAtLeastBase.blockHeight);
   const equalityEnd = blockX(emissionData.meta.tailStrictlyHigher.blockHeight - 1);
@@ -485,6 +567,16 @@ export function CombinedEmissionChart({
             </g>
           ))}
 
+          {liveX !== null && liveOverlayY !== null && liveTip ? (
+            <g className="live-tip-marker">
+              <line x1={liveX} x2={liveX} y1={top} y2={bottom} />
+              <circle cx={liveX} cy={liveOverlayY} r={4.5} />
+              <text x={liveMarkerLabelX} y={top - 9}>
+                TODAY · {liveDateLabel(liveTip).toUpperCase()}
+              </text>
+            </g>
+          ) : null}
+
           <line
             className="selection-guide"
             x1={left + step * (selectedIndex + 0.5)}
@@ -614,6 +706,29 @@ export function CombinedEmissionChart({
             </g>
           ))}
 
+          {liveX !== null && liveTip ? (
+            <g className="live-tip-marker">
+              <line
+                x1={mobileBlockX(liveTip.tipHeight) ?? mobileLeft}
+                x2={mobileBlockX(liveTip.tipHeight) ?? mobileLeft}
+                y1={mobileTop}
+                y2={mobileBottom}
+              />
+              <text
+                x={Math.max(
+                  mobileLeft + 2,
+                  Math.min(
+                    (mobileBlockX(liveTip.tipHeight) ?? mobileLeft) + 4,
+                    mobileWidth - mobileRight - 58,
+                  ),
+                )}
+                y={mobileTop - 7}
+              >
+                TODAY
+              </text>
+            </g>
+          ) : null}
+
           <line
             className="selection-guide"
             x1={mobileLeft + mobileStep * (selectedIndex + 0.5)}
@@ -653,20 +768,56 @@ export function CombinedEmissionChart({
         value={selectedIndex}
         period={rows[selectedIndex].period}
         onChange={onSelect}
+        liveControl={liveControl}
       />
     </section>
   );
 }
 
-export function TreasuryExplorer() {
+export function TreasuryExplorer({
+  liveTip,
+  liveStatus,
+  onRefreshLive,
+}: {
+  liveTip: LiveChainSnapshot | null;
+  liveStatus: LiveChainState["status"];
+  onRefreshLive: () => void;
+}) {
   const years = emissionData.years.slice(0, 5) as YearData[];
   const treasury = emissionData.meta.treasuryReserve;
-  const [selectedYearIndex, setSelectedYearIndex] = useState(0);
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState(0);
+  const [manualPosition, setManualPosition] = useState<{
+    yearIndex: number;
+    monthIndex: number;
+  } | null>(null);
+  const livePosition =
+    liveTip?.withinModel &&
+    liveTip.yearIndex !== null &&
+    liveTip.yearIndex < years.length &&
+    liveTip.monthIndex !== null
+      ? { yearIndex: liveTip.yearIndex, monthIndex: liveTip.monthIndex }
+      : null;
+  const selectedYearIndex = manualPosition?.yearIndex ?? livePosition?.yearIndex ?? 0;
+  const selectedMonthIndex = manualPosition?.monthIndex ?? livePosition?.monthIndex ?? 0;
   const year = years[selectedYearIndex];
   const rows = year.months;
   const selected = rows[selectedMonthIndex];
   const total = Number(treasury.totalXds);
+  const selectYear = (index: number) => {
+    setManualPosition({ yearIndex: index, monthIndex: selectedMonthIndex });
+  };
+  const selectMonth = (index: number) => {
+    setManualPosition({ yearIndex: selectedYearIndex, monthIndex: index });
+  };
+  const selectToday = () => {
+    if (
+      liveTip?.withinModel &&
+      liveTip.yearIndex !== null &&
+      liveTip.yearIndex < years.length &&
+      liveTip.monthIndex !== null
+    ) {
+      setManualPosition(null);
+    }
+  };
   const treasuryHorizon = [
     { label: "Genesis · fixed", amountXds: treasury.genesisUnlockedXds, yearIndex: null },
     ...years.map((candidate, index) => ({
@@ -685,6 +836,10 @@ export function TreasuryExplorer() {
   const plotWidth = width - left - right;
   const step = plotWidth / rows.length;
   const y = (value: number) => bottom - (value / total) * plotHeight;
+  const blockX = (blockHeight: number) => {
+    if (blockHeight < year.blockStart || blockHeight > year.blockEnd) return null;
+    return left + ((blockHeight - year.blockStart + 1) / year.blocks) * plotWidth;
+  };
   let stepPath = `M ${left} ${y(Number(rows[0].treasuryUnlockedStartXds))}`;
   for (const [index] of rows.entries()) {
     const boundaryX = left + step * (index + 1);
@@ -705,6 +860,13 @@ export function TreasuryExplorer() {
   const mobileStep = mobilePlotWidth / rows.length;
   const mobileY = (value: number) =>
     mobileBottom - (value / total) * mobilePlotHeight;
+  const mobileBlockX = (blockHeight: number) => {
+    if (blockHeight < year.blockStart || blockHeight > year.blockEnd) return null;
+    return (
+      mobileLeft +
+      ((blockHeight - year.blockStart + 1) / year.blocks) * mobilePlotWidth
+    );
+  };
   let mobileStepPath = `M ${mobileLeft} ${mobileY(Number(rows[0].treasuryUnlockedStartXds))}`;
   for (const [index] of rows.entries()) {
     const mobileBoundaryX = mobileLeft + mobileStep * (index + 1);
@@ -723,6 +885,37 @@ export function TreasuryExplorer() {
     x: mobileLeft + mobileStep * (selectedMonthIndex + 0.5),
     y: mobileY(Number(selected.treasuryUnlockedStartXds)),
   };
+  const liveX = liveTip ? blockX(liveTip.tipHeight) : null;
+  const mobileLiveX = liveTip ? mobileBlockX(liveTip.tipHeight) : null;
+  const liveTreasuryY = liveTip ? y(Number(liveTip.treasuryUnlockedXds)) : null;
+  const mobileLiveTreasuryY = liveTip
+    ? mobileY(Number(liveTip.treasuryUnlockedXds))
+    : null;
+  const liveControl: LiveControl = liveTip
+    ? liveTip.withinModel && liveTip.yearIndex !== null && liveTip.yearIndex < years.length
+      ? {
+          active:
+            liveTip.yearIndex === selectedYearIndex &&
+            liveTip.monthIndex === selectedMonthIndex,
+          detail: `${liveDateLabel(liveTip)} · H ${formatInteger(liveTip.tipHeight)}`,
+          disabled: false,
+          label: "Today",
+          onClick: selectToday,
+        }
+      : {
+          active: false,
+          detail: "Outside Treasury horizon",
+          disabled: true,
+          label: "Today",
+          onClick: selectToday,
+        }
+    : {
+        active: false,
+        detail: liveStatus === "error" ? "RPC unavailable" : "Connecting to RPC",
+        disabled: liveStatus !== "error",
+        label: liveStatus === "error" ? "Retry live" : "Today",
+        onClick: onRefreshLive,
+      };
 
   return (
     <section className="section treasury-section" id="treasury" aria-labelledby="treasury-title">
@@ -802,7 +995,7 @@ export function TreasuryExplorer() {
                     data-selected={milestone.yearIndex === selectedYearIndex}
                     aria-pressed={milestone.yearIndex === selectedYearIndex}
                     aria-label={`Protocol Year ${milestone.yearIndex + 1}, ${formatCompact(milestone.amountXds)} Treasury scheduled unlocked by year end`}
-                    onClick={() => setSelectedYearIndex(milestone.yearIndex)}
+                    onClick={() => selectYear(milestone.yearIndex)}
                   >
                     {content}
                   </button>
@@ -861,6 +1054,18 @@ export function TreasuryExplorer() {
               })}
 
               <path className="treasury-step-line" d={stepPath} />
+              {liveX !== null && liveTreasuryY !== null && liveTip ? (
+                <g className="live-tip-marker">
+                  <line x1={liveX} x2={liveX} y1={top} y2={bottom} />
+                  <circle cx={liveX} cy={liveTreasuryY} r={4.5} />
+                  <text
+                    x={Math.max(left + 4, Math.min(liveX + 7, width - right - 112))}
+                    y={top - 8}
+                  >
+                    TODAY · {liveDateLabel(liveTip).toUpperCase()}
+                  </text>
+                </g>
+              ) : null}
               <circle className="treasury-step-point unlocked" cx={selectedPoint.x} cy={selectedPoint.y} r={4.5} />
               <line
                 className="selection-guide"
@@ -877,8 +1082,8 @@ export function TreasuryExplorer() {
                   y={top}
                   width={step}
                   height={plotHeight + 38}
-                  onMouseEnter={() => setSelectedMonthIndex(index)}
-                  onClick={() => setSelectedMonthIndex(index)}
+                  onMouseEnter={() => selectMonth(index)}
+                  onClick={() => selectMonth(index)}
                 />
               ))}
             </svg>
@@ -923,6 +1128,21 @@ export function TreasuryExplorer() {
               })}
 
               <path className="treasury-step-line" d={mobileStepPath} />
+              {mobileLiveX !== null && mobileLiveTreasuryY !== null ? (
+                <g className="live-tip-marker">
+                  <line x1={mobileLiveX} x2={mobileLiveX} y1={mobileTop} y2={mobileBottom} />
+                  <circle cx={mobileLiveX} cy={mobileLiveTreasuryY} r={3.5} />
+                  <text
+                    x={Math.max(
+                      mobileLeft + 2,
+                      Math.min(mobileLiveX + 4, mobileWidth - mobileRight - 58),
+                    )}
+                    y={mobileTop - 6}
+                  >
+                    TODAY
+                  </text>
+                </g>
+              ) : null}
               <circle className="treasury-step-point unlocked" cx={mobileSelectedPoint.x} cy={mobileSelectedPoint.y} r={3.5} />
               <line
                 className="selection-guide"
@@ -940,7 +1160,7 @@ export function TreasuryExplorer() {
                   y={mobileTop}
                   width={mobileStep}
                   height={mobilePlotHeight + 26}
-                  onClick={() => setSelectedMonthIndex(index)}
+                  onClick={() => selectMonth(index)}
                 />
               ))}
             </svg>
@@ -952,7 +1172,8 @@ export function TreasuryExplorer() {
             label="Treasury"
             value={selectedMonthIndex}
             period={selected.period}
-            onChange={setSelectedMonthIndex}
+            onChange={selectMonth}
+            liveControl={liveControl}
           />
 
           <div className="treasury-readout" role="status" aria-live="polite" aria-atomic="true">

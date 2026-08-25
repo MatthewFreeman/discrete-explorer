@@ -7,6 +7,7 @@ import {
   TreasuryExplorer,
   type ChartOverlay,
 } from "./InteractiveCharts";
+import { useLiveChain, type LiveChainSnapshot } from "./live-chain";
 
 type YearData = (typeof emissionData.years)[number];
 type MonthData = YearData["months"][number];
@@ -56,20 +57,124 @@ const treasuryLockedAtMonthStartXds = (row: MonthData) =>
   xdsAtoms(emissionData.meta.treasuryReserve.totalXds) -
   xdsAtoms(row.treasuryUnlockedStartXds);
 
+const liveTimestamp = (snapshot: LiveChainSnapshot) =>
+  new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+    timeZoneName: "short",
+    year: "numeric",
+  }).format(new Date(snapshot.tipTimestamp));
+
+function LiveTipReadout({
+  liveChain,
+}: {
+  liveChain: ReturnType<typeof useLiveChain>;
+}) {
+  const snapshot = liveChain.snapshot;
+  return (
+    <section
+      className="live-tip-readout"
+      data-status={liveChain.status}
+      aria-label="Actual Discrete chain tip"
+      aria-live="polite"
+    >
+      <div className="live-tip-readout-head">
+        <div>
+          <span>Actual chain tip</span>
+          <strong>
+            {snapshot
+              ? `Block ${formatInteger(snapshot.tipHeight)} · ${liveTimestamp(snapshot)}`
+              : liveChain.status === "error"
+                ? "Live RPC unavailable"
+                : "Connecting to the Explorer RPC nodes…"}
+          </strong>
+        </div>
+        <span className="live-status-pill" data-warning={snapshot?.nodeWarning || false}>
+          <i aria-hidden="true" />
+          {snapshot
+            ? snapshot.nodeWarning
+              ? "Live · node warning"
+              : "Live RPC"
+            : liveChain.status === "error"
+              ? "Offline"
+              : "Loading"}
+        </span>
+      </div>
+      <div className="live-tip-metrics">
+        <div><span>Exact block</span><strong>{snapshot ? formatInteger(snapshot.tipHeight) : "—"}</strong></div>
+        <div><span>Generated supply at tip</span><strong>{snapshot ? `${formatNumber(snapshot.generatedSupplyXds)} XDS` : "—"}</strong></div>
+        <div><span>Miner issuance</span><strong>{snapshot ? `${formatNumber(snapshot.minerIssuanceXds)} XDS` : "—"}</strong></div>
+        <div><span>Treasury scheduled available</span><strong>{snapshot ? `${formatNumber(snapshot.treasuryUnlockedXds)} XDS` : "—"}</strong></div>
+        <div><span>Mined + scheduled unlocked</span><strong>{snapshot ? `${formatNumber(snapshot.minedPlusScheduledUnlockedXds)} XDS` : "—"}</strong></div>
+        <div><span>Next full-block reward</span><strong>{snapshot ? `${formatNumber(snapshot.nextRewardXds)} XDS` : "—"}</strong></div>
+      </div>
+      <div className="live-tip-source">
+        {snapshot ? (
+          <>
+            Height, generated supply, timestamp, and next reward come from the live node.
+            Treasury availability is derived from the consensus unlock schedule at that exact height.
+            <span>{new URL(snapshot.source).host}</span>
+          </>
+        ) : (
+          <>
+            The code-derived monthly model remains available while live data is unavailable.
+            {liveChain.status === "error" ? (
+              <button type="button" onClick={() => void liveChain.refresh()}>Retry live RPC</button>
+            ) : null}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function EmissionReport() {
   const years = emissionData.years as YearData[];
   const transitionYearIndex = years.findIndex(
     (year) => tailBlock >= year.blockStart && tailBlock <= year.blockEnd,
   );
-  const [selectedYearIndex, setSelectedYearIndex] = useState(0);
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState(0);
+  const [manualPosition, setManualPosition] = useState<{
+    yearIndex: number;
+    monthIndex: number;
+  } | null>(null);
   const [chartOverlay, setChartOverlay] = useState<ChartOverlay>("unlocked");
+  const liveChain = useLiveChain();
+  const livePosition =
+    liveChain.snapshot?.withinModel &&
+    liveChain.snapshot.yearIndex !== null &&
+    liveChain.snapshot.monthIndex !== null
+      ? {
+          yearIndex: liveChain.snapshot.yearIndex,
+          monthIndex: liveChain.snapshot.monthIndex,
+        }
+      : null;
+  const selectedYearIndex = manualPosition?.yearIndex ?? livePosition?.yearIndex ?? 0;
+  const selectedMonthIndex = manualPosition?.monthIndex ?? livePosition?.monthIndex ?? 0;
   const selectedYear = years[selectedYearIndex];
   const selected = selectedYear.months[selectedMonthIndex];
   const selectedYearEnd = selectedYear.months[selectedYear.months.length - 1];
 
   const selectYear = (index: number) => {
-    setSelectedYearIndex(index);
+    setManualPosition({ yearIndex: index, monthIndex: selectedMonthIndex });
+  };
+
+  const selectMonth = (index: number) => {
+    setManualPosition({ yearIndex: selectedYearIndex, monthIndex: index });
+  };
+
+  const selectLiveTip = () => {
+    const snapshot = liveChain.snapshot;
+    if (
+      snapshot?.withinModel &&
+      snapshot.yearIndex !== null &&
+      snapshot.monthIndex !== null
+    ) {
+      setManualPosition(null);
+    }
   };
 
   return (
@@ -228,9 +333,13 @@ export function EmissionReport() {
               <CombinedEmissionChart
                 year={selectedYear}
                 selectedIndex={selectedMonthIndex}
-                onSelect={setSelectedMonthIndex}
+                onSelect={selectMonth}
                 lineMetric={chartOverlay}
                 onLineMetricChange={setChartOverlay}
+                liveTip={liveChain.snapshot}
+                liveStatus={liveChain.status}
+                onSelectToday={selectLiveTip}
+                onRefreshLive={() => void liveChain.refresh()}
                 yearControls={(
                   <div className="year-selector-shell emission-year-selector-shell">
                     <div className="year-selector-head">
@@ -261,6 +370,8 @@ export function EmissionReport() {
                   </div>
                 )}
               />
+
+              <LiveTipReadout liveChain={liveChain} />
 
               <div className="chart-readout" role="status" aria-live="polite" aria-atomic="true">
                 <div className="readout-item">
@@ -385,7 +496,11 @@ export function EmissionReport() {
           </div>
         </section>
 
-        <TreasuryExplorer />
+          <TreasuryExplorer
+            liveTip={liveChain.snapshot}
+            liveStatus={liveChain.status}
+            onRefreshLive={() => void liveChain.refresh()}
+          />
 
         <section className="section" id="mechanics">
           <div className="container">

@@ -58,10 +58,16 @@
                         </form>
 
                         <nav class="topbar-nav topbar-nav--inline" aria-label="Primary">
-                            <a v-for="item in primaryNav" :key="item.name" class="nav-link topbar-nav-link" :class="{ active: isPrimaryActive(item.name) }" :href="linkTo({ name: item.name })" @click.prevent="goTo({ name: item.name })">
-                                <i class="fas" :class="item.icon"></i>
-                                <span>{{ item.label }}</span>
-                            </a>
+                            <template v-for="item in primaryNav" :key="item.name">
+                                <a v-if="item.href" class="nav-link topbar-nav-link" :href="item.href">
+                                    <i class="fas" :class="item.icon"></i>
+                                    <span>{{ item.label }}</span>
+                                </a>
+                                <a v-else class="nav-link topbar-nav-link" :class="{ active: isPrimaryActive(item.name) }" :href="linkTo({ name: item.name })" @click.prevent="goTo({ name: item.name })">
+                                    <i class="fas" :class="item.icon"></i>
+                                    <span>{{ item.label }}</span>
+                                </a>
+                            </template>
                         </nav>
 
                         <div class="topbar-actions">
@@ -120,18 +126,6 @@
                                 <span class="metric-meta">Registered on-chain aliases</span>
                             </article>
                         </div>
-
-                        <article class="node-status-strip">
-                            <div class="node-status-main">
-                                <span class="metric-label">Protocol research</span>
-                                <strong>Explore XDS emission, block rewards, and Treasury unlocks</strong>
-                                <span class="metric-meta">A code-derived monthly model across ten protocol years.</span>
-                            </div>
-                            <a class="button button--ghost" href="https://matthewfreeman.github.io/discrete-cash/xds-emission/" target="_blank" rel="noreferrer">
-                                <i class="fas fa-coins" aria-hidden="true"></i>
-                                Open emission explorer
-                            </a>
-                        </article>
 
                         <article class="node-status-strip">
                             <div class="node-status-main">

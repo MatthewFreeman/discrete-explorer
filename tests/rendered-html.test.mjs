@@ -259,16 +259,37 @@ test("anchors Today markers and exact readout to the live chain tip", async () =
     /Math\.floor\(\s*\(tipHeight - 1\) \/ emissionData\.meta\.blocksPerProtocolMonth/,
   );
   assert.match(liveSource, /minerIssuanceAtoms \+ treasuryUnlockedAtoms/);
-  assert.match(chartSource, /blockX\(liveTip\.tipHeight\)/);
+  assert.match(
+    chartSource,
+    /liveXWithinMonthBar\(liveTip, year, left, step, 0\.56\)/,
+  );
+  assert.match(
+    chartSource,
+    /centerX - barWidth \/ 2 \+ progress \* barWidth/,
+  );
+  assert.match(chartSource, /isTodaySelected &&/);
+  assert.match(chartSource, /manualPosition === null &&/);
+  assert.match(
+    chartSource,
+    /className="live-tip-callout" visibility=\{liveControl\.active \? "visible" : "hidden"\}/,
+  );
   assert.match(chartSource, /className="live-tip-marker"/);
   assert.match(chartSource, /className="live-tip-callout"/);
-  assert.match(chartSource, /LIVE TIP · H \{formatInteger\(liveTip\.tipHeight\)\}/);
+  assert.match(
+    chartSource,
+    /LIVE TIP · M\{\(liveTip\.monthIndex \?\? 0\) \+ 1\} · H \{formatInteger\(liveTip\.tipHeight\)\}/,
+  );
   assert.match(chartSource, /liveTip\.minedPlusScheduledUnlockedXds/);
   assert.match(chartSource, /liveTip\.nextRewardXds/);
   assert.match(chartSource, /liveTip\.treasuryUnlockedXds/);
   assert.match(chartSource, /liveDateTimeLabel\(liveTip\)/);
   assert.match(reportSource, /Generated supply at tip/);
   assert.match(reportSource, /Treasury scheduled available/);
+  assert.match(reportSource, /Target-cadence drift/);
+  assert.match(reportSource, /expectedHeight - snapshot\.tipHeight/);
+  assert.match(reportSource, /averageSecondsPerBlock/);
+  assert.match(reportSource, /Target-cadence projection · 90 s\/block/);
+  assert.match(chartSource, /Target · \{period\}/);
   assert.match(reportSource, /Height, generated supply, timestamp, and next reward come from the live node/);
   assert.match(html, /Actual chain tip/i);
   assert.equal((html.match(/Connecting to RPC/g) ?? []).length, 2);
@@ -276,6 +297,7 @@ test("anchors Today markers and exact readout to the live chain tip", async () =
   assert.match(css, /\.live-tip-callout rect/);
   assert.match(css, /\.live-tip-callout-value/);
   assert.match(css, /\.live-tip-readout/);
+  assert.match(css, /\.live-cadence-status/);
   assert.match(css, /\.today-button/);
 });
 
@@ -360,7 +382,11 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.equal((html.match(/class="unlock-label"/g) ?? []).length, 3);
   assert.equal((html.match(/class="combined-overlay-line unlocked"/g) ?? []).length, 2);
   assert.equal((html.match(/class="combined-overlay-point unlocked"/g) ?? []).length, 2);
-  assert.equal((html.match(/class="selected-treasury-label"/g) ?? []).length, 0);
+  assert.equal((html.match(/class="selected-treasury-label"/g) ?? []).length, 1);
+  assert.match(
+    source,
+    /className="selected-treasury-label" visibility=\{liveControl\.active \? "hidden" : "visible"\}/,
+  );
   assert.match(html, /Amber caps use the same monthly XDS scale as miner issuance/i);
   assert.equal((html.match(/class="overlay-definition-copies"/g) ?? []).length, 1);
   assert.equal((html.match(/class="line-legend-labels"/g) ?? []).length, 1);

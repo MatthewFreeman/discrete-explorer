@@ -480,6 +480,17 @@ textarea {
   font-weight: 500;
 }
 
+.projection-context {
+  display: block;
+  margin-top: 7px;
+  color: var(--amber);
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .regime-badge {
   padding: 8px 11px;
   border: 1px solid var(--rule);
@@ -1618,6 +1629,42 @@ textarea {
 .live-status-pill[data-warning="true"] {
   border-color: rgba(217, 181, 109, 0.5);
   color: var(--amber);
+}
+
+.live-cadence-status {
+  display: grid;
+  grid-template-columns: auto minmax(240px, 0.7fr) minmax(300px, 1fr);
+  align-items: center;
+  gap: 12px 18px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: rgba(217, 181, 109, 0.045);
+  font-family: var(--font-mono), monospace;
+}
+
+.live-cadence-status > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.live-cadence-status strong {
+  color: var(--amber);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-cadence-status[data-direction="ahead"] strong,
+.live-cadence-status[data-direction="on-target"] strong {
+  color: var(--mint-bright);
+}
+
+.live-cadence-status small {
+  color: var(--ink-soft);
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .live-tip-metrics {
@@ -3309,6 +3356,11 @@ button.treasury-horizon-item:focus-visible {
     align-items: flex-start;
     flex-direction: column;
     gap: 11px;
+  }
+
+  .live-cadence-status {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
 
   .live-tip-metrics {

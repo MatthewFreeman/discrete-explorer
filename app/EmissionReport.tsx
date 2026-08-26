@@ -69,12 +69,34 @@ const liveTimestamp = (snapshot: LiveChainSnapshot) =>
     year: "numeric",
   }).format(new Date(snapshot.tipTimestamp));
 
+const targetCadenceState = (snapshot: LiveChainSnapshot) => {
+  const anchorMs = new Date(emissionData.meta.anchorTimestamp).getTime();
+  const tipMs = new Date(snapshot.tipTimestamp).getTime();
+  const elapsedSeconds = Math.max(0, (tipMs - anchorMs) / 1_000);
+  const expectedHeight = Math.max(
+    1,
+    Math.floor(elapsedSeconds / emissionData.meta.blockTargetSeconds) + 1,
+  );
+  const lagBlocks = expectedHeight - snapshot.tipHeight;
+  return {
+    averageSecondsPerBlock:
+      snapshot.tipHeight > 1
+        ? elapsedSeconds / (snapshot.tipHeight - 1)
+        : emissionData.meta.blockTargetSeconds,
+    days: Math.abs(lagBlocks) / emissionData.meta.blocksPerDay,
+    direction: lagBlocks > 0 ? "behind" : lagBlocks < 0 ? "ahead" : "on-target",
+    expectedHeight,
+    lagBlocks,
+  } as const;
+};
+
 function LiveTipReadout({
   liveChain,
 }: {
   liveChain: ReturnType<typeof useLiveChain>;
 }) {
   const snapshot = liveChain.snapshot;
+  const cadence = snapshot ? targetCadenceState(snapshot) : null;
   return (
     <section
       className="live-tip-readout"
@@ -103,6 +125,24 @@ function LiveTipReadout({
               ? "Offline"
               : "Loading"}
         </span>
+      </div>
+      <div
+        className="live-cadence-status"
+        data-direction={cadence?.direction ?? "loading"}
+      >
+        <span>Target-cadence drift</span>
+        <strong>
+          {cadence
+            ? cadence.direction === "on-target"
+              ? "On the 90 s/block projection"
+              : `${cadence.direction === "behind" ? "Behind" : "Ahead"} by ${formatInteger(Math.abs(cadence.lagBlocks))} blocks · ${formatNumber(cadence.days)} days`
+            : "Waiting for live chain height…"}
+        </strong>
+        <small>
+          {cadence
+            ? `${formatNumber(cadence.averageSecondsPerBlock)} s/block average since Block 1 · target 90 s · projected height ${formatInteger(cadence.expectedHeight)}`
+            : "Calendar ranges use the 90 s/block target, not observed wall-clock cadence."}
+        </small>
       </div>
       <div className="live-tip-metrics">
         <div><span>Exact block</span><strong>{snapshot ? formatInteger(snapshot.tipHeight) : "—"}</strong></div>
@@ -281,6 +321,7 @@ export function EmissionReport() {
                 <div>
                   <span>Protocol Year {selectedYear.year}</span>
                   <strong>{selectedYear.period}</strong>
+                  <small className="projection-context">Target-cadence projection · 90 s/block</small>
                 </div>
                 <span className={`regime-badge ${selectedYear.regime}`}>
                   {selectedYear.regime === "transition"
@@ -338,6 +379,7 @@ export function EmissionReport() {
                 onLineMetricChange={setChartOverlay}
                 liveTip={liveChain.snapshot}
                 liveStatus={liveChain.status}
+                isTodaySelected={manualPosition === null && livePosition !== null}
                 onSelectToday={selectLiveTip}
                 onRefreshLive={() => void liveChain.refresh()}
                 yearControls={(
@@ -376,7 +418,7 @@ export function EmissionReport() {
               <div className="chart-readout" role="status" aria-live="polite" aria-atomic="true">
                 <div className="readout-item">
                   <div className="readout-label">
-                    Year {selected.year} · Month {selected.month}
+                    Target period · Year {selected.year} · Month {selected.month}
                   </div>
                   <div className="readout-value">{selected.period}</div>
                 </div>

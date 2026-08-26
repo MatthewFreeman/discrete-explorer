@@ -1215,6 +1215,44 @@ textarea {
   pointer-events: none;
 }
 
+.combined-chart-svg .live-tip-callout rect,
+.treasury-chart-svg .live-tip-callout rect,
+.mobile-chart-svg .live-tip-callout rect {
+  fill: rgba(7, 12, 15, 0.96);
+  stroke: var(--mint-bright);
+  stroke-width: 1;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.42));
+}
+
+.combined-chart-svg .live-tip-callout .live-tip-callout-kicker,
+.treasury-chart-svg .live-tip-callout .live-tip-callout-kicker,
+.mobile-chart-svg .live-tip-callout .live-tip-callout-kicker {
+  fill: var(--mint-bright);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.combined-chart-svg .live-tip-callout .live-tip-callout-value,
+.treasury-chart-svg .live-tip-callout .live-tip-callout-value,
+.mobile-chart-svg .live-tip-callout .live-tip-callout-value {
+  fill: var(--ink);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.combined-chart-svg .live-tip-callout .live-tip-callout-time,
+.treasury-chart-svg .live-tip-callout .live-tip-callout-time,
+.mobile-chart-svg .live-tip-callout .live-tip-callout-time {
+  fill: var(--muted);
+  font-size: 7.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.mobile-chart-svg .live-tip-callout.mobile .live-tip-callout-value {
+  font-size: 9px;
+}
+
 .combined-chart-svg .transition-marker line {
   stroke: var(--amber);
   stroke-width: 1;

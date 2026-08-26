@@ -2,7 +2,7 @@
 
 This static export was built from the immutable source commit:
 
-https://github.com/MatthewFreeman/discrete-explorer/tree/c9e7cbdc76d71519b4d5dfa3ac51fb5844b17a04
+https://github.com/MatthewFreeman/discrete-explorer/tree/848c0e2410168aada5907eb813deb87e90a9423e
 
 Rebuild from that checkout with:
 
@@ -18,5 +18,6 @@ authoritative; projected dates assume the 90-second target cadence.
 The `Today` position reads the current chain height, generated supply, next
 reward, and tip timestamp from the public Discrete Explorer RPC nodes. Treasury
 availability is derived from the pinned consensus unlock schedule at that exact
-height. The page keeps the code-derived model usable if both RPC nodes are
-temporarily unavailable.
+height. The page reports the live chain's drift from the target-cadence calendar
+and keeps the code-derived model usable if both RPC nodes are temporarily
+unavailable.

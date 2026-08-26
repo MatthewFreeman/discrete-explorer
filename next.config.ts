@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   output: isStaticExport ? "export" : undefined,
   basePath: isStaticExport ? deployBasePath : undefined,
   assetPrefix: isStaticExport ? deployBasePath : undefined,
+  generateBuildId: async () => process.env.XDS_SOURCE_COMMIT || "local-development",
   trailingSlash: true,
   images: { unoptimized: true },
 };

@@ -67,6 +67,18 @@ const liveDateLabel = (snapshot: LiveChainSnapshot) =>
     timeZone: "UTC",
   }).format(new Date(snapshot.tipTimestamp));
 
+const liveDateTimeLabel = (snapshot: LiveChainSnapshot) =>
+  `${new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(snapshot.tipTimestamp))} · ${new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(snapshot.tipTimestamp))} UTC`;
+
 type LiveControl = {
   active: boolean;
   detail: string;
@@ -242,10 +254,26 @@ export function CombinedEmissionChart({
     liveX !== null && liveOverlayValue !== null
       ? Math.max(top, Math.min(bottom, overlayY(liveOverlayValue)))
       : null;
-  const liveMarkerLabelX =
+  const liveCalloutWidth = 184;
+  const liveCalloutHeight = 56;
+  const liveCalloutX =
     liveX === null
       ? left
-      : Math.max(left + 4, Math.min(liveX + 7, width - right - 112));
+      : liveX + liveCalloutWidth + 12 <= width - right
+        ? liveX + 12
+        : liveX - liveCalloutWidth - 12;
+  const liveCalloutY =
+    liveOverlayY === null
+      ? top + 8
+      : Math.max(
+          top + 8,
+          Math.min(
+            bottom - liveCalloutHeight - 8,
+            liveOverlayY < top + liveCalloutHeight + 24
+              ? liveOverlayY + 12
+              : liveOverlayY - liveCalloutHeight - 12,
+          ),
+        );
   const liveControl: LiveControl = liveTip
     ? liveTip.withinModel
       ? {
@@ -345,6 +373,34 @@ export function CombinedEmissionChart({
     ...marker,
     x: mobileBlockX(marker.block) ?? mobileLeft,
   }));
+  const mobileLiveX =
+    liveTip && liveTip.yearIndex === year.year - 1
+      ? mobileBlockX(liveTip.tipHeight)
+      : null;
+  const mobileLiveOverlayY =
+    mobileLiveX !== null && liveOverlayValue !== null
+      ? Math.max(mobileTop, Math.min(mobileBottom, mobileOverlayY(liveOverlayValue)))
+      : null;
+  const mobileLiveCalloutWidth = 166;
+  const mobileLiveCalloutHeight = 52;
+  const mobileLiveCalloutX =
+    mobileLiveX === null
+      ? mobileLeft
+      : mobileLiveX + mobileLiveCalloutWidth + 8 <= mobileWidth - mobileRight
+        ? mobileLiveX + 8
+        : mobileLiveX - mobileLiveCalloutWidth - 8;
+  const mobileLiveCalloutY =
+    mobileLiveOverlayY === null
+      ? mobileTop + 6
+      : Math.max(
+          mobileTop + 6,
+          Math.min(
+            mobileBottom - mobileLiveCalloutHeight - 6,
+            mobileLiveOverlayY < mobileTop + mobileLiveCalloutHeight + 18
+              ? mobileLiveOverlayY + 9
+              : mobileLiveOverlayY - mobileLiveCalloutHeight - 9,
+          ),
+        );
   const valueLabelWidth = 76;
   const valueLabelHeight = 24;
   const selectedOverlayLabelX = Math.min(
@@ -571,9 +627,20 @@ export function CombinedEmissionChart({
             <g className="live-tip-marker">
               <line x1={liveX} x2={liveX} y1={top} y2={bottom} />
               <circle cx={liveX} cy={liveOverlayY} r={4.5} />
-              <text x={liveMarkerLabelX} y={top - 9}>
-                TODAY · {liveDateLabel(liveTip).toUpperCase()}
-              </text>
+              <g className="live-tip-callout">
+                <rect x={liveCalloutX} y={liveCalloutY} width={liveCalloutWidth} height={liveCalloutHeight} rx={6} />
+                <text className="live-tip-callout-kicker" x={liveCalloutX + 10} y={liveCalloutY + 15}>
+                  LIVE TIP · H {formatInteger(liveTip.tipHeight)}
+                </text>
+                <text className="live-tip-callout-value" x={liveCalloutX + 10} y={liveCalloutY + 33}>
+                  {lineMetric === "reward"
+                    ? `${formatNumber(liveTip.nextRewardXds)} XDS / BLOCK`
+                    : `${formatNumber(liveTip.minedPlusScheduledUnlockedXds)} XDS`}
+                </text>
+                <text className="live-tip-callout-time" x={liveCalloutX + 10} y={liveCalloutY + 48}>
+                  {liveDateTimeLabel(liveTip).toUpperCase()}
+                </text>
+              </g>
             </g>
           ) : null}
 
@@ -706,26 +773,24 @@ export function CombinedEmissionChart({
             </g>
           ))}
 
-          {liveX !== null && liveTip ? (
+          {mobileLiveX !== null && mobileLiveOverlayY !== null && liveTip ? (
             <g className="live-tip-marker">
-              <line
-                x1={mobileBlockX(liveTip.tipHeight) ?? mobileLeft}
-                x2={mobileBlockX(liveTip.tipHeight) ?? mobileLeft}
-                y1={mobileTop}
-                y2={mobileBottom}
-              />
-              <text
-                x={Math.max(
-                  mobileLeft + 2,
-                  Math.min(
-                    (mobileBlockX(liveTip.tipHeight) ?? mobileLeft) + 4,
-                    mobileWidth - mobileRight - 58,
-                  ),
-                )}
-                y={mobileTop - 7}
-              >
-                TODAY
-              </text>
+              <line x1={mobileLiveX} x2={mobileLiveX} y1={mobileTop} y2={mobileBottom} />
+              <circle cx={mobileLiveX} cy={mobileLiveOverlayY} r={3.5} />
+              <g className="live-tip-callout mobile">
+                <rect x={mobileLiveCalloutX} y={mobileLiveCalloutY} width={mobileLiveCalloutWidth} height={mobileLiveCalloutHeight} rx={5} />
+                <text className="live-tip-callout-kicker" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 14}>
+                  LIVE TIP · H {formatInteger(liveTip.tipHeight)}
+                </text>
+                <text className="live-tip-callout-value" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 31}>
+                  {lineMetric === "reward"
+                    ? `${formatNumber(liveTip.nextRewardXds)} XDS / BLOCK`
+                    : `${formatNumber(liveTip.minedPlusScheduledUnlockedXds)} XDS`}
+                </text>
+                <text className="live-tip-callout-time" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 45}>
+                  {liveDateTimeLabel(liveTip).toUpperCase()}
+                </text>
+              </g>
             </g>
           ) : null}
 
@@ -891,6 +956,39 @@ export function TreasuryExplorer({
   const mobileLiveTreasuryY = liveTip
     ? mobileY(Number(liveTip.treasuryUnlockedXds))
     : null;
+  const liveCalloutWidth = 184;
+  const liveCalloutHeight = 56;
+  const liveCalloutX =
+    liveX === null
+      ? left
+      : liveX + liveCalloutWidth + 12 <= width - right
+        ? liveX + 12
+        : liveX - liveCalloutWidth - 12;
+  const liveCalloutY =
+    liveTreasuryY === null
+      ? top + 8
+      : Math.max(
+          top + 8,
+          Math.min(bottom - liveCalloutHeight - 8, liveTreasuryY - liveCalloutHeight - 12),
+        );
+  const mobileLiveCalloutWidth = 166;
+  const mobileLiveCalloutHeight = 52;
+  const mobileLiveCalloutX =
+    mobileLiveX === null
+      ? mobileLeft
+      : mobileLiveX + mobileLiveCalloutWidth + 8 <= mobileWidth - mobileRight
+        ? mobileLiveX + 8
+        : mobileLiveX - mobileLiveCalloutWidth - 8;
+  const mobileLiveCalloutY =
+    mobileLiveTreasuryY === null
+      ? mobileTop + 6
+      : Math.max(
+          mobileTop + 6,
+          Math.min(
+            mobileBottom - mobileLiveCalloutHeight - 6,
+            mobileLiveTreasuryY - mobileLiveCalloutHeight - 9,
+          ),
+        );
   const liveControl: LiveControl = liveTip
     ? liveTip.withinModel && liveTip.yearIndex !== null && liveTip.yearIndex < years.length
       ? {
@@ -1058,12 +1156,18 @@ export function TreasuryExplorer({
                 <g className="live-tip-marker">
                   <line x1={liveX} x2={liveX} y1={top} y2={bottom} />
                   <circle cx={liveX} cy={liveTreasuryY} r={4.5} />
-                  <text
-                    x={Math.max(left + 4, Math.min(liveX + 7, width - right - 112))}
-                    y={top - 8}
-                  >
-                    TODAY · {liveDateLabel(liveTip).toUpperCase()}
-                  </text>
+                  <g className="live-tip-callout">
+                    <rect x={liveCalloutX} y={liveCalloutY} width={liveCalloutWidth} height={liveCalloutHeight} rx={6} />
+                    <text className="live-tip-callout-kicker" x={liveCalloutX + 10} y={liveCalloutY + 15}>
+                      LIVE TIP · H {formatInteger(liveTip.tipHeight)}
+                    </text>
+                    <text className="live-tip-callout-value" x={liveCalloutX + 10} y={liveCalloutY + 33}>
+                      {formatNumber(liveTip.treasuryUnlockedXds)} XDS AVAILABLE
+                    </text>
+                    <text className="live-tip-callout-time" x={liveCalloutX + 10} y={liveCalloutY + 48}>
+                      {liveDateTimeLabel(liveTip).toUpperCase()}
+                    </text>
+                  </g>
                 </g>
               ) : null}
               <circle className="treasury-step-point unlocked" cx={selectedPoint.x} cy={selectedPoint.y} r={4.5} />
@@ -1132,15 +1236,18 @@ export function TreasuryExplorer({
                 <g className="live-tip-marker">
                   <line x1={mobileLiveX} x2={mobileLiveX} y1={mobileTop} y2={mobileBottom} />
                   <circle cx={mobileLiveX} cy={mobileLiveTreasuryY} r={3.5} />
-                  <text
-                    x={Math.max(
-                      mobileLeft + 2,
-                      Math.min(mobileLiveX + 4, mobileWidth - mobileRight - 58),
-                    )}
-                    y={mobileTop - 6}
-                  >
-                    TODAY
-                  </text>
+                  <g className="live-tip-callout mobile">
+                    <rect x={mobileLiveCalloutX} y={mobileLiveCalloutY} width={mobileLiveCalloutWidth} height={mobileLiveCalloutHeight} rx={5} />
+                    <text className="live-tip-callout-kicker" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 14}>
+                      LIVE TIP · H {formatInteger(liveTip?.tipHeight ?? 0)}
+                    </text>
+                    <text className="live-tip-callout-value" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 31}>
+                      {formatNumber(liveTip?.treasuryUnlockedXds ?? 0)} XDS AVAILABLE
+                    </text>
+                    <text className="live-tip-callout-time" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 45}>
+                      {liveTip ? liveDateTimeLabel(liveTip).toUpperCase() : ""}
+                    </text>
+                  </g>
                 </g>
               ) : null}
               <circle className="treasury-step-point unlocked" cx={mobileSelectedPoint.x} cy={mobileSelectedPoint.y} r={3.5} />

@@ -7,7 +7,6 @@ on:
       - "tests/**"
       - ".github/workflows/emission-artifact.yml"
   push:
-    branches: [master]
     paths:
       - "emission/**"
       - "tests/**"

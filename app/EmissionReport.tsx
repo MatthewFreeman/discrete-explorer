@@ -111,7 +111,7 @@ function LiveTipReadout({
             {snapshot
               ? `Block ${formatInteger(snapshot.tipHeight)} · ${liveTimestamp(snapshot)}`
               : liveChain.status === "error"
-                ? "Live RPC unavailable"
+                ? "Live RPC quorum unconfirmed"
                 : "Connecting to the Explorer RPC nodes…"}
           </strong>
         </div>
@@ -122,7 +122,7 @@ function LiveTipReadout({
               ? "Live · node warning"
               : "Live RPC"
             : liveChain.status === "error"
-              ? "Offline"
+              ? "Unconfirmed"
               : "Loading"}
         </span>
       </div>

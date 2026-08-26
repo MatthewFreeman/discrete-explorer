@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import emissionData from "@/data/emission-decade.json";
+import { isRpcSnapshotFresh, requireRpcQuorum } from "@/app/live-chain-quorum";
 
 const RPC_ENDPOINTS = [
   "https://seed1.discrete.cash:9332",
@@ -9,6 +10,7 @@ const RPC_ENDPOINTS = [
 ] as const;
 const REQUEST_TIMEOUT_MS = 8_000;
 const REFRESH_INTERVAL_MS = 60_000;
+const SNAPSHOT_MAX_AGE_MS = REFRESH_INTERVAL_MS + REQUEST_TIMEOUT_MS;
 const atomsPerXds = BigInt(100);
 
 type NodeInfo = {
@@ -107,12 +109,19 @@ const fetchCandidate = async (source: string): Promise<LiveChainSnapshot> => {
     }),
   });
   const header = headerPayload.result?.block_header;
+  const headerHash = header?.hash?.toLowerCase() ?? "";
+  const infoHash = info.top_block_hash?.toLowerCase() ?? "";
   if (
     headerPayload.result?.status !== "OK" ||
     !header ||
     header.height !== tipHeight ||
     !Number.isSafeInteger(header.timestamp) ||
-    header.timestamp <= 0
+    header.timestamp <= 0 ||
+    !/^[0-9a-f]{64}$/.test(headerHash) ||
+    !/^[0-9a-f]{64}$/.test(infoHash) ||
+    headerHash !== infoHash ||
+    !Number.isSafeInteger(Number(info.next_reward)) ||
+    Number(info.next_reward) < 0
   ) {
     throw new Error("RPC tip header does not match chain height");
   }
@@ -136,7 +145,7 @@ const fetchCandidate = async (source: string): Promise<LiveChainSnapshot> => {
   return {
     chainHeight,
     tipHeight,
-    tipHash: header.hash || info.top_block_hash || "",
+    tipHash: headerHash,
     tipTimestamp: new Date(header.timestamp * 1_000).toISOString(),
     generatedSupplyXds: formatAtoms(generatedAtoms),
     minerIssuanceXds: formatAtoms(minerIssuanceAtoms),
@@ -165,15 +174,7 @@ export const loadLiveChainSnapshot = async () => {
   const candidates = settled.flatMap((result) =>
     result.status === "fulfilled" ? [result.value] : [],
   );
-  if (candidates.length === 0) throw new Error("Discrete RPC nodes are unavailable");
-
-  candidates.sort((left, right) => {
-    if (left.nodeWarning !== right.nodeWarning) return left.nodeWarning ? 1 : -1;
-    const finalizedDelta = (right.finalizedHeight ?? -1) - (left.finalizedHeight ?? -1);
-    if (finalizedDelta !== 0) return finalizedDelta;
-    return right.tipHeight - left.tipHeight;
-  });
-  return candidates[0];
+  return requireRpcQuorum(candidates, RPC_ENDPOINTS.length);
 };
 
 export function useLiveChain() {
@@ -184,6 +185,7 @@ export function useLiveChain() {
     refreshing: false,
     error: null,
   });
+  const snapshotFetchedAt = state.snapshot?.fetchedAt;
 
   useEffect(() => {
     mounted.current = true;
@@ -193,21 +195,28 @@ export function useLiveChain() {
   }, []);
 
   const refresh = useCallback(async () => {
-    setState((current) => ({
-      ...current,
-      status: current.snapshot ? "online" : "loading",
-      refreshing: true,
-      error: null,
-    }));
+    setState((current) => {
+      const snapshot =
+        current.snapshot &&
+        isRpcSnapshotFresh(current.snapshot.fetchedAt, Date.now(), SNAPSHOT_MAX_AGE_MS)
+          ? current.snapshot
+          : null;
+      return {
+        status: snapshot ? "online" : "loading",
+        snapshot,
+        refreshing: true,
+        error: null,
+      };
+    });
     try {
       const snapshot = await loadLiveChainSnapshot();
       if (!mounted.current) return;
       setState({ status: "online", snapshot, refreshing: false, error: null });
     } catch (error) {
       if (!mounted.current) return;
-      setState((current) => ({
-        status: current.snapshot ? "online" : "error",
-        snapshot: current.snapshot,
+      setState(() => ({
+        status: "error",
+        snapshot: null,
         refreshing: false,
         error: error instanceof Error ? error.message : "Live RPC request failed",
       }));
@@ -217,8 +226,36 @@ export function useLiveChain() {
   useEffect(() => {
     void refresh();
     const timer = window.setInterval(() => void refresh(), REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!snapshotFetchedAt) return;
+    const fetchedAtMs = Date.parse(snapshotFetchedAt);
+    const remainingMs = Number.isFinite(fetchedAtMs)
+      ? Math.max(0, SNAPSHOT_MAX_AGE_MS - (Date.now() - fetchedAtMs))
+      : 0;
+    const expiryTimer = window.setTimeout(() => {
+      setState((current) =>
+        current.snapshot?.fetchedAt === snapshotFetchedAt
+          ? {
+              status: current.refreshing ? "loading" : "error",
+              snapshot: null,
+              refreshing: current.refreshing,
+              error: current.refreshing ? null : "Live RPC snapshot expired",
+            }
+          : current,
+      );
+    }, remainingMs);
+    return () => window.clearTimeout(expiryTimer);
+  }, [snapshotFetchedAt]);
 
   return { ...state, refresh };
 }

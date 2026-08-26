@@ -79,6 +79,34 @@ const liveDateTimeLabel = (snapshot: LiveChainSnapshot) =>
     timeZone: "UTC",
   }).format(new Date(snapshot.tipTimestamp))} UTC`;
 
+const liveXWithinMonthBar = (
+  snapshot: LiveChainSnapshot,
+  year: YearData,
+  left: number,
+  step: number,
+  barWidthRatio: number,
+) => {
+  if (snapshot.yearIndex !== year.year - 1 || snapshot.monthIndex === null) {
+    return null;
+  }
+  const row = year.months[snapshot.monthIndex];
+  if (
+    !row ||
+    snapshot.tipHeight < row.blockStart ||
+    snapshot.tipHeight > row.blockEnd
+  ) {
+    return null;
+  }
+  const progress =
+    row.blockEnd === row.blockStart
+      ? 1
+      : (snapshot.tipHeight - row.blockStart) /
+        (row.blockEnd - row.blockStart);
+  const barWidth = step * barWidthRatio;
+  const centerX = left + step * (snapshot.monthIndex + 0.5);
+  return centerX - barWidth / 2 + progress * barWidth;
+};
+
 type LiveControl = {
   active: boolean;
   detail: string;
@@ -132,7 +160,9 @@ function MonthNavigator({
               </option>
             ))}
           </select>
-          <small id={`${id}-period`} title={period}>{period}</small>
+          <small id={`${id}-period`} title={`Target-cadence projection: ${period}`}>
+            Target · {period}
+          </small>
         </label>
         <button
           className="today-button"
@@ -167,6 +197,7 @@ export function CombinedEmissionChart({
   yearControls,
   liveTip,
   liveStatus,
+  isTodaySelected,
   onSelectToday,
   onRefreshLive,
 }: {
@@ -178,6 +209,7 @@ export function CombinedEmissionChart({
   yearControls: ReactNode;
   liveTip: LiveChainSnapshot | null;
   liveStatus: LiveChainState["status"];
+  isTodaySelected: boolean;
   onSelectToday: () => void;
   onRefreshLive: () => void;
 }) {
@@ -239,10 +271,9 @@ export function CombinedEmissionChart({
       ((blockHeight - year.blockStart + 1) / year.blocks) * plotWidth
     );
   };
-  const liveX =
-    liveTip && liveTip.yearIndex === year.year - 1
-      ? blockX(liveTip.tipHeight)
-      : null;
+  const liveX = liveTip
+    ? liveXWithinMonthBar(liveTip, year, left, step, 0.56)
+    : null;
   const liveOverlayValue = liveTip
     ? Number(
         lineMetric === "reward"
@@ -278,8 +309,9 @@ export function CombinedEmissionChart({
     ? liveTip.withinModel
       ? {
           active:
+            isTodaySelected &&
             liveTip.yearIndex === year.year - 1 && liveTip.monthIndex === selectedIndex,
-          detail: `${liveDateLabel(liveTip)} · H ${formatInteger(liveTip.tipHeight)}`,
+          detail: `${liveDateLabel(liveTip)} · M${(liveTip.monthIndex ?? 0) + 1} · H ${formatInteger(liveTip.tipHeight)}`,
           disabled: false,
           label: "Today",
           onClick: onSelectToday,
@@ -373,10 +405,9 @@ export function CombinedEmissionChart({
     ...marker,
     x: mobileBlockX(marker.block) ?? mobileLeft,
   }));
-  const mobileLiveX =
-    liveTip && liveTip.yearIndex === year.year - 1
-      ? mobileBlockX(liveTip.tipHeight)
-      : null;
+  const mobileLiveX = liveTip
+    ? liveXWithinMonthBar(liveTip, year, mobileLeft, mobileStep, 0.54)
+    : null;
   const mobileLiveOverlayY =
     mobileLiveX !== null && liveOverlayValue !== null
       ? Math.max(mobileTop, Math.min(mobileBottom, mobileOverlayY(liveOverlayValue)))
@@ -604,6 +635,7 @@ export function CombinedEmissionChart({
             cx={selectedPoint.x}
             cy={selectedPoint.y}
             r={5.5}
+            visibility={liveControl.active ? "hidden" : "visible"}
           />
 
           {eventMarkers.map((marker) => (
@@ -627,10 +659,10 @@ export function CombinedEmissionChart({
             <g className="live-tip-marker">
               <line x1={liveX} x2={liveX} y1={top} y2={bottom} />
               <circle cx={liveX} cy={liveOverlayY} r={4.5} />
-              <g className="live-tip-callout">
+              <g className="live-tip-callout" visibility={liveControl.active ? "visible" : "hidden"}>
                 <rect x={liveCalloutX} y={liveCalloutY} width={liveCalloutWidth} height={liveCalloutHeight} rx={6} />
                 <text className="live-tip-callout-kicker" x={liveCalloutX + 10} y={liveCalloutY + 15}>
-                  LIVE TIP · H {formatInteger(liveTip.tipHeight)}
+                  LIVE TIP · M{(liveTip.monthIndex ?? 0) + 1} · H {formatInteger(liveTip.tipHeight)}
                 </text>
                 <text className="live-tip-callout-value" x={liveCalloutX + 10} y={liveCalloutY + 33}>
                   {lineMetric === "reward"
@@ -650,8 +682,9 @@ export function CombinedEmissionChart({
             x2={left + step * (selectedIndex + 0.5)}
             y1={top}
             y2={bottom}
+            visibility={liveControl.active ? "hidden" : "visible"}
           />
-          <g className={`selected-overlay-label ${lineMetric}`}>
+          <g className={`selected-overlay-label ${lineMetric}`} visibility={liveControl.active ? "hidden" : "visible"}>
             <rect x={selectedOverlayLabelX} y={selectedOverlayLabelY} width={valueLabelWidth} height={valueLabelHeight} rx={5} />
             <text x={selectedOverlayLabelX + valueLabelWidth / 2} y={selectedOverlayLabelY + 16} textAnchor="middle">
               {lineMetric === "reward"
@@ -765,6 +798,7 @@ export function CombinedEmissionChart({
             cx={mobileSelectedPoint.x}
             cy={mobileSelectedPoint.y}
             r={4}
+            visibility={liveControl.active ? "hidden" : "visible"}
           />
 
           {mobileEventMarkers.map((marker) => (
@@ -777,10 +811,10 @@ export function CombinedEmissionChart({
             <g className="live-tip-marker">
               <line x1={mobileLiveX} x2={mobileLiveX} y1={mobileTop} y2={mobileBottom} />
               <circle cx={mobileLiveX} cy={mobileLiveOverlayY} r={3.5} />
-              <g className="live-tip-callout mobile">
+              <g className="live-tip-callout mobile" visibility={liveControl.active ? "visible" : "hidden"}>
                 <rect x={mobileLiveCalloutX} y={mobileLiveCalloutY} width={mobileLiveCalloutWidth} height={mobileLiveCalloutHeight} rx={5} />
                 <text className="live-tip-callout-kicker" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 14}>
-                  LIVE TIP · H {formatInteger(liveTip.tipHeight)}
+                  LIVE TIP · M{(liveTip.monthIndex ?? 0) + 1} · H {formatInteger(liveTip.tipHeight)}
                 </text>
                 <text className="live-tip-callout-value" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 31}>
                   {lineMetric === "reward"
@@ -800,6 +834,7 @@ export function CombinedEmissionChart({
             x2={mobileLeft + mobileStep * (selectedIndex + 0.5)}
             y1={mobileTop}
             y2={mobileBottom}
+            visibility={liveControl.active ? "hidden" : "visible"}
           />
 
           {rows.map((row, index) => (
@@ -901,10 +936,6 @@ export function TreasuryExplorer({
   const plotWidth = width - left - right;
   const step = plotWidth / rows.length;
   const y = (value: number) => bottom - (value / total) * plotHeight;
-  const blockX = (blockHeight: number) => {
-    if (blockHeight < year.blockStart || blockHeight > year.blockEnd) return null;
-    return left + ((blockHeight - year.blockStart + 1) / year.blocks) * plotWidth;
-  };
   let stepPath = `M ${left} ${y(Number(rows[0].treasuryUnlockedStartXds))}`;
   for (const [index] of rows.entries()) {
     const boundaryX = left + step * (index + 1);
@@ -925,13 +956,6 @@ export function TreasuryExplorer({
   const mobileStep = mobilePlotWidth / rows.length;
   const mobileY = (value: number) =>
     mobileBottom - (value / total) * mobilePlotHeight;
-  const mobileBlockX = (blockHeight: number) => {
-    if (blockHeight < year.blockStart || blockHeight > year.blockEnd) return null;
-    return (
-      mobileLeft +
-      ((blockHeight - year.blockStart + 1) / year.blocks) * mobilePlotWidth
-    );
-  };
   let mobileStepPath = `M ${mobileLeft} ${mobileY(Number(rows[0].treasuryUnlockedStartXds))}`;
   for (const [index] of rows.entries()) {
     const mobileBoundaryX = mobileLeft + mobileStep * (index + 1);
@@ -946,12 +970,29 @@ export function TreasuryExplorer({
     x: left + step * (selectedMonthIndex + 0.5),
     y: y(Number(selected.treasuryUnlockedStartXds)),
   };
+  const selectedTreasuryLabelWidth = 76;
+  const selectedTreasuryLabelHeight = 24;
+  const selectedTreasuryLabelX = Math.min(
+    selectedPoint.x + 8,
+    width - right - selectedTreasuryLabelWidth,
+  );
+  const selectedTreasuryLabelY = Math.max(
+    top,
+    Math.min(
+      bottom - selectedTreasuryLabelHeight,
+      selectedPoint.y - selectedTreasuryLabelHeight - 8,
+    ),
+  );
   const mobileSelectedPoint = {
     x: mobileLeft + mobileStep * (selectedMonthIndex + 0.5),
     y: mobileY(Number(selected.treasuryUnlockedStartXds)),
   };
-  const liveX = liveTip ? blockX(liveTip.tipHeight) : null;
-  const mobileLiveX = liveTip ? mobileBlockX(liveTip.tipHeight) : null;
+  const liveX = liveTip
+    ? liveXWithinMonthBar(liveTip, year, left, step, 0.58)
+    : null;
+  const mobileLiveX = liveTip
+    ? liveXWithinMonthBar(liveTip, year, mobileLeft, mobileStep, 0.54)
+    : null;
   const liveTreasuryY = liveTip ? y(Number(liveTip.treasuryUnlockedXds)) : null;
   const mobileLiveTreasuryY = liveTip
     ? mobileY(Number(liveTip.treasuryUnlockedXds))
@@ -993,9 +1034,10 @@ export function TreasuryExplorer({
     ? liveTip.withinModel && liveTip.yearIndex !== null && liveTip.yearIndex < years.length
       ? {
           active:
+            manualPosition === null &&
             liveTip.yearIndex === selectedYearIndex &&
             liveTip.monthIndex === selectedMonthIndex,
-          detail: `${liveDateLabel(liveTip)} · H ${formatInteger(liveTip.tipHeight)}`,
+          detail: `${liveDateLabel(liveTip)} · M${(liveTip.monthIndex ?? 0) + 1} · H ${formatInteger(liveTip.tipHeight)}`,
           disabled: false,
           label: "Today",
           onClick: selectToday,
@@ -1156,10 +1198,10 @@ export function TreasuryExplorer({
                 <g className="live-tip-marker">
                   <line x1={liveX} x2={liveX} y1={top} y2={bottom} />
                   <circle cx={liveX} cy={liveTreasuryY} r={4.5} />
-                  <g className="live-tip-callout">
+                  <g className="live-tip-callout" visibility={liveControl.active ? "visible" : "hidden"}>
                     <rect x={liveCalloutX} y={liveCalloutY} width={liveCalloutWidth} height={liveCalloutHeight} rx={6} />
                     <text className="live-tip-callout-kicker" x={liveCalloutX + 10} y={liveCalloutY + 15}>
-                      LIVE TIP · H {formatInteger(liveTip.tipHeight)}
+                      LIVE TIP · M{(liveTip.monthIndex ?? 0) + 1} · H {formatInteger(liveTip.tipHeight)}
                     </text>
                     <text className="live-tip-callout-value" x={liveCalloutX + 10} y={liveCalloutY + 33}>
                       {formatNumber(liveTip.treasuryUnlockedXds)} XDS AVAILABLE
@@ -1170,13 +1212,30 @@ export function TreasuryExplorer({
                   </g>
                 </g>
               ) : null}
-              <circle className="treasury-step-point unlocked" cx={selectedPoint.x} cy={selectedPoint.y} r={4.5} />
+              <circle className="treasury-step-point unlocked" cx={selectedPoint.x} cy={selectedPoint.y} r={4.5} visibility={liveControl.active ? "hidden" : "visible"} />
+              <g className="selected-treasury-label" visibility={liveControl.active ? "hidden" : "visible"}>
+                <rect
+                  x={selectedTreasuryLabelX}
+                  y={selectedTreasuryLabelY}
+                  width={selectedTreasuryLabelWidth}
+                  height={selectedTreasuryLabelHeight}
+                  rx={5}
+                />
+                <text
+                  x={selectedTreasuryLabelX + selectedTreasuryLabelWidth / 2}
+                  y={selectedTreasuryLabelY + 16}
+                  textAnchor="middle"
+                >
+                  {formatCompact(Number(selected.treasuryUnlockedStartXds))}
+                </text>
+              </g>
               <line
                 className="selection-guide"
                 x1={selectedPoint.x}
                 x2={selectedPoint.x}
                 y1={top}
                 y2={bottom}
+                visibility={liveControl.active ? "hidden" : "visible"}
               />
               {rows.map((row, index) => (
                 <rect
@@ -1236,10 +1295,10 @@ export function TreasuryExplorer({
                 <g className="live-tip-marker">
                   <line x1={mobileLiveX} x2={mobileLiveX} y1={mobileTop} y2={mobileBottom} />
                   <circle cx={mobileLiveX} cy={mobileLiveTreasuryY} r={3.5} />
-                  <g className="live-tip-callout mobile">
+                  <g className="live-tip-callout mobile" visibility={liveControl.active ? "visible" : "hidden"}>
                     <rect x={mobileLiveCalloutX} y={mobileLiveCalloutY} width={mobileLiveCalloutWidth} height={mobileLiveCalloutHeight} rx={5} />
                     <text className="live-tip-callout-kicker" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 14}>
-                      LIVE TIP · H {formatInteger(liveTip?.tipHeight ?? 0)}
+                      LIVE TIP · M{(liveTip?.monthIndex ?? 0) + 1} · H {formatInteger(liveTip?.tipHeight ?? 0)}
                     </text>
                     <text className="live-tip-callout-value" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 31}>
                       {formatNumber(liveTip?.treasuryUnlockedXds ?? 0)} XDS AVAILABLE
@@ -1250,13 +1309,14 @@ export function TreasuryExplorer({
                   </g>
                 </g>
               ) : null}
-              <circle className="treasury-step-point unlocked" cx={mobileSelectedPoint.x} cy={mobileSelectedPoint.y} r={3.5} />
+              <circle className="treasury-step-point unlocked" cx={mobileSelectedPoint.x} cy={mobileSelectedPoint.y} r={3.5} visibility={liveControl.active ? "hidden" : "visible"} />
               <line
                 className="selection-guide"
                 x1={mobileSelectedPoint.x}
                 x2={mobileSelectedPoint.x}
                 y1={mobileTop}
                 y2={mobileBottom}
+                visibility={liveControl.active ? "hidden" : "visible"}
               />
 
               {rows.map((row, index) => (
@@ -1284,7 +1344,7 @@ export function TreasuryExplorer({
           />
 
           <div className="treasury-readout" role="status" aria-live="polite" aria-atomic="true">
-            <div><span>Year {selected.year} · Month {selected.month}</span><strong>{selected.period}</strong></div>
+            <div><span>Target period · Year {selected.year} · Month {selected.month}</span><strong>{selected.period}</strong></div>
             <div><span>Exact blocks</span><strong>{formatInteger(selected.blockStart)}–{formatInteger(selected.blockEnd)}</strong></div>
             <div><span>Treasury available from month start</span><strong>{formatNumber(selected.treasuryUnlockedStartXds)} XDS</strong></div>
             <div><span>Still time-locked at month start</span><strong>{formatNumber(total - Number(selected.treasuryUnlockedStartXds))} XDS</strong></div>

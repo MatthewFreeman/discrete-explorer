@@ -325,7 +325,7 @@ export function CombinedEmissionChart({
         }
     : {
         active: false,
-        detail: liveStatus === "error" ? "RPC unavailable" : "Connecting to RPC",
+        detail: liveStatus === "error" ? "RPC quorum unconfirmed" : "Connecting to RPC",
         disabled: liveStatus !== "error",
         label: liveStatus === "error" ? "Retry live" : "Today",
         onClick: onRefreshLive,
@@ -1051,7 +1051,7 @@ export function TreasuryExplorer({
         }
     : {
         active: false,
-        detail: liveStatus === "error" ? "RPC unavailable" : "Connecting to RPC",
+        detail: liveStatus === "error" ? "RPC quorum unconfirmed" : "Connecting to RPC",
         disabled: liveStatus !== "error",
         label: liveStatus === "error" ? "Retry live" : "Today",
         onClick: onRefreshLive,

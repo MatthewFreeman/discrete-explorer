@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import ts from "typescript";
 
 async function render() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -27,6 +28,61 @@ function xdsAtoms(value) {
   const [whole, fraction = ""] = String(value).split(".");
   return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0").slice(0, 2));
 }
+
+async function importTypeScriptModule(relativePath) {
+  const source = await readFile(new URL(relativePath, import.meta.url), "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  return import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+}
+
+test("requires exact two-node agreement and a fresh snapshot before publishing live data", async () => {
+  const { isRpcSnapshotFresh, requireRpcQuorum } =
+    await importTypeScriptModule("../app/live-chain-quorum.ts");
+  const agreed = {
+    chainHeight: 29458,
+    tipHeight: 29457,
+    tipHash: "ab".repeat(32),
+    tipTimestamp: "2026-08-26T18:00:00.000Z",
+    generatedSupplyXds: "3929253.24",
+    nextRewardXds: "64.02",
+    nodeWarning: false,
+    source: "seed1",
+  };
+
+  assert.equal(requireRpcQuorum([agreed, { ...agreed, source: "seed2" }], 2).source, "seed1");
+  assert.equal(
+    requireRpcQuorum([agreed, { ...agreed, nodeWarning: true, source: "seed2" }], 2)
+      .nodeWarning,
+    true,
+  );
+  assert.throws(() => requireRpcQuorum([agreed], 2), /quorum is unavailable/i);
+
+  for (const [field, value] of [
+    ["tipHeight", agreed.tipHeight + 1],
+    ["tipHash", "cd".repeat(32)],
+    ["tipTimestamp", "2026-08-26T18:00:01.000Z"],
+    ["generatedSupplyXds", "3929253.25"],
+    ["nextRewardXds", "64.03"],
+  ]) {
+    assert.throws(
+      () => requireRpcQuorum([agreed, { ...agreed, [field]: value, source: "seed2" }], 2),
+      /nodes disagree/i,
+      `must reject disagreement in ${field}`,
+    );
+  }
+
+  const fetchedAt = "2026-08-26T18:00:00.000Z";
+  const fetchedAtMs = Date.parse(fetchedAt);
+  assert.equal(isRpcSnapshotFresh(fetchedAt, fetchedAtMs + 68_000, 68_000), true);
+  assert.equal(isRpcSnapshotFresh(fetchedAt, fetchedAtMs + 68_001, 68_000), false);
+  assert.equal(isRpcSnapshotFresh("invalid", fetchedAtMs, 68_000), false);
+  assert.equal(isRpcSnapshotFresh(fetchedAt, fetchedAtMs - 1, 68_000), false);
+});
 
 test("server-renders the complete emission report", async () => {
   const response = await render();
@@ -250,6 +306,13 @@ test("anchors Today markers and exact readout to the live chain tip", async () =
 
   assert.match(liveSource, /https:\/\/seed1\.discrete\.cash:9332/);
   assert.match(liveSource, /https:\/\/seed2\.discrete\.cash:9332/);
+  assert.match(liveSource, /requireRpcQuorum\(candidates, RPC_ENDPOINTS\.length\)/);
+  assert.match(liveSource, /headerHash !== infoHash/);
+  assert.match(liveSource, /status: "error",\s*snapshot: null/);
+  assert.match(liveSource, /isRpcSnapshotFresh\(current\.snapshot\.fetchedAt/);
+  assert.match(liveSource, /visibilitychange/);
+  assert.match(liveSource, /SNAPSHOT_MAX_AGE_MS - \(Date\.now\(\) - fetchedAtMs\)/);
+  assert.match(liveSource, /Live RPC snapshot expired/);
   assert.match(liveSource, /const tipHeight = chainHeight - 1/);
   assert.match(liveSource, /method: "getblockheaderbyheight"/);
   assert.match(liveSource, /info\.already_generated_coins/);

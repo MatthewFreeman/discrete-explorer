@@ -1,0 +1,27 @@
+name: Emission artifact
+
+on:
+  pull_request:
+    paths:
+      - "emission/**"
+      - "tests/**"
+      - ".github/workflows/emission-artifact.yml"
+  push:
+    branches: [master]
+    paths:
+      - "emission/**"
+      - "tests/**"
+      - ".github/workflows/emission-artifact.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test tests/*.cjs

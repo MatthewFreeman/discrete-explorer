@@ -1,23 +1,25 @@
 # XDS emission explorer source
 
-This static export was built from the immutable source commit:
+This static export was built in a detached checkout of the immutable source commit:
 
-https://github.com/MatthewFreeman/discrete-explorer/tree/848c0e2410168aada5907eb813deb87e90a9423e
+https://github.com/MatthewFreeman/discrete-explorer/tree/d85df88724fa5588aaf9df91335fe9d72c1de3bd
 
-Rebuild from that checkout with:
+Rebuild from that clean checkout with:
 
 ```text
 npm ci
 npm run explorer:build
 ```
 
-The emission model is pinned to Discrete consensus commit
-`7311efa2775af3409e167e4fc1521b024c2d4d21`. Exact block ranges are
-authoritative; projected dates assume the 90-second target cadence.
+The build uses the committed npm lockfile, and the deterministic Next build ID is
+the full source commit. The export manifest lists every generated file other than
+the manifest itself with its SHA-256.
 
-The `Today` position reads the current chain height, generated supply, next
-reward, and tip timestamp from the public Discrete Explorer RPC nodes. Treasury
-availability is derived from the pinned consensus unlock schedule at that exact
-height. The page reports the live chain's drift from the target-cadence calendar
-and keeps the code-derived model usable if both RPC nodes are temporarily
-unavailable.
+The emission model is pinned to Discrete consensus commit
+`7311efa2775af3409e167e4fc1521b024c2d4d21`. Exact block ranges are authoritative;
+projected dates assume the 90-second target cadence.
+
+The `Today` position is shown only when both fixed public Explorer RPC nodes
+agree on the exact tip hash, height, timestamp, generated supply, and next
+reward. On disagreement or single-node availability, the page fails closed to
+the code-derived static model.

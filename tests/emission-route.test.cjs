@@ -11,6 +11,11 @@ const readEmissionChunks = () =>
         .filter((name) => name.endsWith(".js"))
         .map((name) => read(path.join("emission", "_next", "static", "chunks", name)))
         .join("\n");
+const listFiles = (directory) =>
+    fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const absolute = path.join(directory, entry.name);
+        return entry.isDirectory() ? listFiles(absolute) : [absolute];
+    });
 
 test("exposes Emission as a dedicated same-origin explorer tab", function () {
     const index = read("index.html");
@@ -52,7 +57,42 @@ test("anchors Today to the live Discrete chain tip", function () {
     assert.match(chunks, /getblockheaderbyheight/);
     assert.match(chunks, /already_generated_coins/);
     assert.match(chunks, /next_reward/);
+    assert.match(chunks, /Discrete RPC quorum is unavailable/);
+    assert.match(chunks, /Discrete RPC nodes disagree on the chain tip/);
+    assert.match(chunks, /Live RPC snapshot expired/);
     assert.match(chunks, /let \w+=\w+-1,\w+=await [\s\S]{0,300}?getblockheaderbyheight/);
+});
+
+test("binds every emission artifact to the reviewed source commit", function () {
+    const emissionRoot = path.join(root, "emission");
+    const manifestPath = path.join(emissionRoot, "EXPORT-MANIFEST.sha256");
+    const manifestRows = fs.readFileSync(manifestPath, "utf8").trimEnd().split(/\r?\n/);
+    const manifest = new Map(manifestRows.map((row) => {
+        const match = row.match(/^([0-9a-f]{64})  (.+)$/);
+        assert.ok(match, `invalid manifest row: ${row}`);
+        return [match[2], match[1]];
+    }));
+    const files = listFiles(emissionRoot)
+        .filter((file) => file !== manifestPath)
+        .map((file) => path.relative(emissionRoot, file).split(path.sep).join("/"))
+        .sort();
+
+    assert.deepEqual(Array.from(manifest.keys()), files);
+    for (const relativePath of files) {
+        const digest = crypto.createHash("sha256")
+            .update(fs.readFileSync(path.join(emissionRoot, relativePath)))
+            .digest("hex");
+        assert.equal(manifest.get(relativePath), digest, `digest mismatch: ${relativePath}`);
+    }
+
+    const sourceCommit = "d85df88724fa5588aaf9df91335fe9d72c1de3bd";
+    const source = read("emission/SOURCE.md");
+    assert.match(source, new RegExp(`MatthewFreeman/discrete-explorer/tree/${sourceCommit}`));
+    assert.equal(
+        fs.existsSync(path.join(emissionRoot, "_next", "static", sourceCommit)),
+        true,
+        "Next build ID must equal the immutable source commit",
+    );
 });
 
 test("preserves the reviewed 120-month CSV artifact", function () {

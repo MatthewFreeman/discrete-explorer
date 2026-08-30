@@ -381,6 +381,12 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
     (chartSource.match(/data-selected=\{index === selected(?:Index|MonthIndex) && !liveControl\.active\}/g) ?? []).length,
     4,
   );
+  assert.match(chartSource, /const mobileSelectedOverlayLabelX = Math\.max\(/);
+  assert.match(chartSource, /x=\{mobileSelectedOverlayLabelX\}/);
+  assert.equal(
+    (chartSource.match(/className=\{`selected-overlay-label \$\{lineMetric\}`\} visibility=\{liveControl\.active \? "hidden" : "visible"\}/g) ?? []).length,
+    2,
+  );
 });
 
 test("keeps the yearly emission table compact without dropping exact data", async () => {
@@ -464,11 +470,13 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.equal((html.match(/class="unlock-label"/g) ?? []).length, 3);
   assert.equal((html.match(/class="combined-overlay-line unlocked"/g) ?? []).length, 2);
   assert.equal((html.match(/class="combined-overlay-point unlocked"/g) ?? []).length, 2);
-  assert.equal((html.match(/class="selected-treasury-label"/g) ?? []).length, 1);
+  assert.equal((html.match(/class="selected-treasury-label"/g) ?? []).length, 2);
   assert.match(
     source,
     /className="selected-treasury-label" visibility=\{liveControl\.active \? "hidden" : "visible"\}/,
   );
+  assert.match(source, /const mobileSelectedTreasuryLabelX = Math\.max\(/);
+  assert.match(source, /x=\{mobileSelectedTreasuryLabelX\}/);
   assert.match(html, /Amber caps use the same monthly XDS scale as miner issuance/i);
   assert.equal((html.match(/class="overlay-definition-copies"/g) ?? []).length, 1);
   assert.equal((html.match(/class="line-legend-labels"/g) ?? []).length, 1);

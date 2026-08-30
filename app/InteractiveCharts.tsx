@@ -440,6 +440,22 @@ export function CombinedEmissionChart({
     top,
     Math.min(bottom - valueLabelHeight, selectedPoint.y - 14),
   );
+  const mobileSelectedOverlayLabelX = Math.max(
+    mobileLeft,
+    Math.min(
+      mobileSelectedPoint.x + 8,
+      mobileWidth - mobileRight - valueLabelWidth,
+    ),
+  );
+  const mobileSelectedOverlayLabelY = Math.max(
+    mobileTop,
+    Math.min(
+      mobileBottom - valueLabelHeight,
+      mobileSelectedPoint.y - valueLabelHeight - 8 >= mobileTop
+        ? mobileSelectedPoint.y - valueLabelHeight - 8
+        : mobileSelectedPoint.y + 8,
+    ),
+  );
   return (
     <section className="combined-chart" id="unified-chart" aria-labelledby="combined-chart-heading" tabIndex={-1}>
       <div className="combined-chart-head">
@@ -836,6 +852,24 @@ export function CombinedEmissionChart({
             y2={mobileBottom}
             visibility={liveControl.active ? "hidden" : "visible"}
           />
+          <g className={`selected-overlay-label ${lineMetric}`} visibility={liveControl.active ? "hidden" : "visible"}>
+            <rect
+              x={mobileSelectedOverlayLabelX}
+              y={mobileSelectedOverlayLabelY}
+              width={valueLabelWidth}
+              height={valueLabelHeight}
+              rx={5}
+            />
+            <text
+              x={mobileSelectedOverlayLabelX + valueLabelWidth / 2}
+              y={mobileSelectedOverlayLabelY + 16}
+              textAnchor="middle"
+            >
+              {lineMetric === "reward"
+                ? `${Number(rows[selectedIndex].rewardEndXds).toFixed(2)}`
+                : formatCompact(overlayValues[selectedIndex + 1])}
+            </text>
+          </g>
 
           {rows.map((row, index) => (
             <rect
@@ -987,6 +1021,22 @@ export function TreasuryExplorer({
     x: mobileLeft + mobileStep * (selectedMonthIndex + 0.5),
     y: mobileY(Number(selected.treasuryUnlockedStartXds)),
   };
+  const mobileSelectedTreasuryLabelX = Math.max(
+    mobileLeft,
+    Math.min(
+      mobileSelectedPoint.x + 8,
+      mobileWidth - mobileRight - selectedTreasuryLabelWidth,
+    ),
+  );
+  const mobileSelectedTreasuryLabelY = Math.max(
+    mobileTop,
+    Math.min(
+      mobileBottom - selectedTreasuryLabelHeight,
+      mobileSelectedPoint.y - selectedTreasuryLabelHeight - 8 >= mobileTop
+        ? mobileSelectedPoint.y - selectedTreasuryLabelHeight - 8
+        : mobileSelectedPoint.y + 8,
+    ),
+  );
   const liveX = liveTip
     ? liveXWithinMonthBar(liveTip, year, left, step, 0.58)
     : null;
@@ -1320,6 +1370,22 @@ export function TreasuryExplorer({
                 y2={mobileBottom}
                 visibility={liveControl.active ? "hidden" : "visible"}
               />
+              <g className="selected-treasury-label" visibility={liveControl.active ? "hidden" : "visible"}>
+                <rect
+                  x={mobileSelectedTreasuryLabelX}
+                  y={mobileSelectedTreasuryLabelY}
+                  width={selectedTreasuryLabelWidth}
+                  height={selectedTreasuryLabelHeight}
+                  rx={5}
+                />
+                <text
+                  x={mobileSelectedTreasuryLabelX + selectedTreasuryLabelWidth / 2}
+                  y={mobileSelectedTreasuryLabelY + 16}
+                  textAnchor="middle"
+                >
+                  {formatCompact(Number(selected.treasuryUnlockedStartXds))}
+                </text>
+              </g>
 
               {rows.map((row, index) => (
                 <rect

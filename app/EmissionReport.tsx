@@ -57,6 +57,10 @@ const treasuryLockedAtMonthStartXds = (row: MonthData) =>
   xdsAtoms(emissionData.meta.treasuryReserve.totalXds) -
   xdsAtoms(row.treasuryUnlockedStartXds);
 
+const treasuryLockedAtTipXds = (snapshot: LiveChainSnapshot) =>
+  xdsAtoms(emissionData.meta.treasuryReserve.totalXds) -
+  xdsAtoms(snapshot.treasuryUnlockedXds);
+
 const liveTimestamp = (snapshot: LiveChainSnapshot) =>
   new Intl.DateTimeFormat("en-US", {
     day: "numeric",
@@ -90,88 +94,6 @@ const targetCadenceState = (snapshot: LiveChainSnapshot) => {
   } as const;
 };
 
-function LiveTipReadout({
-  liveChain,
-}: {
-  liveChain: ReturnType<typeof useLiveChain>;
-}) {
-  const snapshot = liveChain.snapshot;
-  const cadence = snapshot ? targetCadenceState(snapshot) : null;
-  return (
-    <section
-      className="live-tip-readout"
-      data-status={liveChain.status}
-      aria-label="Actual Discrete chain tip"
-      aria-live="polite"
-    >
-      <div className="live-tip-readout-head">
-        <div>
-          <span>Actual chain tip</span>
-          <strong>
-            {snapshot
-              ? `Block ${formatInteger(snapshot.tipHeight)} · ${liveTimestamp(snapshot)}`
-              : liveChain.status === "error"
-                ? "Live RPC quorum unconfirmed"
-                : "Connecting to the Explorer RPC nodes…"}
-          </strong>
-        </div>
-        <span className="live-status-pill" data-warning={snapshot?.nodeWarning || false}>
-          <i aria-hidden="true" />
-          {snapshot
-            ? snapshot.nodeWarning
-              ? "Live · node warning"
-              : "Live RPC"
-            : liveChain.status === "error"
-              ? "Unconfirmed"
-              : "Loading"}
-        </span>
-      </div>
-      <div
-        className="live-cadence-status"
-        data-direction={cadence?.direction ?? "loading"}
-      >
-        <span>Target-cadence drift</span>
-        <strong>
-          {cadence
-            ? cadence.direction === "on-target"
-              ? "On the 90 s/block projection"
-              : `${cadence.direction === "behind" ? "Behind" : "Ahead"} by ${formatInteger(Math.abs(cadence.lagBlocks))} blocks · ${formatNumber(cadence.days)} days`
-            : "Waiting for live chain height…"}
-        </strong>
-        <small>
-          {cadence
-            ? `${formatNumber(cadence.averageSecondsPerBlock)} s/block average since Block 1 · target 90 s · projected height ${formatInteger(cadence.expectedHeight)}`
-            : "Calendar ranges use the 90 s/block target, not observed wall-clock cadence."}
-        </small>
-      </div>
-      <div className="live-tip-metrics">
-        <div><span>Exact block</span><strong>{snapshot ? formatInteger(snapshot.tipHeight) : "—"}</strong></div>
-        <div><span>Generated supply at tip</span><strong>{snapshot ? `${formatNumber(snapshot.generatedSupplyXds)} XDS` : "—"}</strong></div>
-        <div><span>Miner issuance</span><strong>{snapshot ? `${formatNumber(snapshot.minerIssuanceXds)} XDS` : "—"}</strong></div>
-        <div><span>Treasury scheduled available</span><strong>{snapshot ? `${formatNumber(snapshot.treasuryUnlockedXds)} XDS` : "—"}</strong></div>
-        <div><span>Mined + scheduled unlocked</span><strong>{snapshot ? `${formatNumber(snapshot.minedPlusScheduledUnlockedXds)} XDS` : "—"}</strong></div>
-        <div><span>Next full-block reward</span><strong>{snapshot ? `${formatNumber(snapshot.nextRewardXds)} XDS` : "—"}</strong></div>
-      </div>
-      <div className="live-tip-source">
-        {snapshot ? (
-          <>
-            Height, generated supply, timestamp, and next reward come from the live node.
-            Treasury availability is derived from the consensus unlock schedule at that exact height.
-            <span>{new URL(snapshot.source).host}</span>
-          </>
-        ) : (
-          <>
-            The code-derived monthly model remains available while live data is unavailable.
-            {liveChain.status === "error" ? (
-              <button type="button" onClick={() => void liveChain.refresh()}>Retry live RPC</button>
-            ) : null}
-          </>
-        )}
-      </div>
-    </section>
-  );
-}
-
 export function EmissionReport() {
   const years = emissionData.years as YearData[];
   const transitionYearIndex = years.findIndex(
@@ -197,6 +119,9 @@ export function EmissionReport() {
   const selectedYear = years[selectedYearIndex];
   const selected = selectedYear.months[selectedMonthIndex];
   const selectedYearEnd = selectedYear.months[selectedYear.months.length - 1];
+  const isTodaySelected = manualPosition === null && livePosition !== null;
+  const todaySnapshot = isTodaySelected ? liveChain.snapshot : null;
+  const todayCadence = todaySnapshot ? targetCadenceState(todaySnapshot) : null;
 
   const selectYear = (index: number) => {
     setManualPosition({ yearIndex: index, monthIndex: selectedMonthIndex });
@@ -259,7 +184,7 @@ export function EmissionReport() {
                 <p className="hero-lede">
                   A sequential, unpenalized full-reward reconstruction of
                   Discrete&apos;s integer reward formula. Choose any protocol year to
-                   inspect monthly miner issuance, the mined-plus-scheduled-unlocked path,
+                   inspect monthly miner issuance, the circulating-supply path,
                    Treasury schedule, and the reward curve—including the point
                   where the perpetual tail becomes dominant.
                 </p>
@@ -341,7 +266,7 @@ export function EmissionReport() {
                   <strong>{formatNumber(selectedYear.minedXds)} XDS</strong>
                 </div>
                 <div>
-                  <span>Mined + scheduled unlocked at year end</span>
+                  <span>Circulating supply at year end</span>
                   <strong>{formatAtoms(minedPlusScheduledUnlockedAtExactEndXds(selectedYearEnd))} XDS</strong>
                 </div>
                 <div>
@@ -379,7 +304,7 @@ export function EmissionReport() {
                 onLineMetricChange={setChartOverlay}
                 liveTip={liveChain.snapshot}
                 liveStatus={liveChain.status}
-                isTodaySelected={manualPosition === null && livePosition !== null}
+                isTodaySelected={isTodaySelected}
                 onSelectToday={selectLiveTip}
                 onRefreshLive={() => void liveChain.refresh()}
                 yearControls={(
@@ -413,56 +338,108 @@ export function EmissionReport() {
                 )}
               />
 
-              <LiveTipReadout liveChain={liveChain} />
-
-              <div className="chart-readout" role="status" aria-live="polite" aria-atomic="true">
-                <div className="readout-item">
-                  <div className="readout-label">
-                    Target period · Year {selected.year} · Month {selected.month}
-                  </div>
-                  <div className="readout-value">{selected.period}</div>
-                </div>
-                <div className="readout-item">
-                  <div className="readout-label">Exact blocks</div>
-                  <div className="readout-value">
-                    {formatInteger(selected.blockStart)}–{formatInteger(selected.blockEnd)}
-                  </div>
-                </div>
-                <div className="readout-item">
-                  <div className="readout-label">Miner issuance</div>
-                  <div className="readout-value">{formatNumber(selected.minedXds)} XDS</div>
-                  <div
-                    className="readout-subvalue"
-                    data-active={Number(selected.treasuryUnlockEnteringMonthXds) > 0}
-                  >
-                    Treasury unlock entering month: {formatNumber(selected.treasuryUnlockEnteringMonthXds)} XDS
-                    <br />
-                    Stacked total: {formatAtoms(monthlyStackXds(selected))} XDS
-                  </div>
-                </div>
-                <div className="readout-item">
-                  <div className="readout-label">Mined through month + Treasury available at start</div>
-                  <div className="readout-value">
-                    {formatAtoms(minedPlusAvailableAtMonthStartXds(selected))} XDS
-                  </div>
-                  <div className="readout-subvalue">
-                    Treasury: {formatNumber(selected.treasuryUnlockedStartXds)} XDS available from month start
-                    <br />
-                    {formatAtoms(treasuryLockedAtMonthStartXds(selected))} XDS still locked at month start
-                  </div>
-                </div>
-                <div className="readout-item">
-                  <div className="readout-label">Reward across month</div>
-                  <div className="readout-value">
-                    {selected.rewardStartXds} → {selected.rewardEndXds} XDS
-                  </div>
-                </div>
-                <div className="readout-item">
-                  <div className="readout-label">Regime at month end</div>
-                  <div className="readout-value">
-                    {selected.regimeAtEnd === "tail" ? "Tail emission" : "Base curve"}
-                  </div>
-                </div>
+              <div
+                className="chart-readout"
+                role="status"
+                aria-label={todaySnapshot ? "Actual chain tip readout" : "Selected protocol month readout"}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {todaySnapshot && todayCadence ? (
+                  <>
+                    <div className="readout-item">
+                      <div className="readout-label">Actual chain tip</div>
+                      <div className="readout-value">Block {formatInteger(todaySnapshot.tipHeight)}</div>
+                      <div className="readout-subvalue">
+                        {liveTimestamp(todaySnapshot)} · {todaySnapshot.nodeWarning ? "Node warning" : "Live RPC"}
+                        <br />
+                        {new URL(todaySnapshot.source).host}
+                      </div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Circulating supply</div>
+                      <div className="readout-value">
+                        {formatNumber(todaySnapshot.minedPlusScheduledUnlockedXds)} XDS
+                      </div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Miner issuance</div>
+                      <div className="readout-value">{formatNumber(todaySnapshot.minerIssuanceXds)} XDS</div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Treasury unlocked</div>
+                      <div className="readout-value">{formatNumber(todaySnapshot.treasuryUnlockedXds)} XDS</div>
+                      <div className="readout-subvalue">
+                        {formatAtoms(treasuryLockedAtTipXds(todaySnapshot))} XDS still locked
+                      </div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Next full-block reward</div>
+                      <div className="readout-value">{formatNumber(todaySnapshot.nextRewardXds)} XDS</div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Target-cadence drift</div>
+                      <div className="readout-value">
+                        {todayCadence.direction === "on-target"
+                          ? "On the 90 s/block projection"
+                          : `${todayCadence.direction === "behind" ? "Behind" : "Ahead"} ${formatInteger(Math.abs(todayCadence.lagBlocks))} blocks`}
+                      </div>
+                      <div className="readout-subvalue">
+                        {formatNumber(todayCadence.days)} days · {formatNumber(todayCadence.averageSecondsPerBlock)} s/block average
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="readout-item">
+                      <div className="readout-label">
+                        Target period · Year {selected.year} · Month {selected.month}
+                      </div>
+                      <div className="readout-value">{selected.period}</div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Exact blocks</div>
+                      <div className="readout-value">
+                        {formatInteger(selected.blockStart)}–{formatInteger(selected.blockEnd)}
+                      </div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Miner issuance</div>
+                      <div className="readout-value">{formatNumber(selected.minedXds)} XDS</div>
+                      <div
+                        className="readout-subvalue"
+                        data-active={Number(selected.treasuryUnlockEnteringMonthXds) > 0}
+                      >
+                        Treasury unlock entering month: {formatNumber(selected.treasuryUnlockEnteringMonthXds)} XDS
+                        <br />
+                        Stacked total: {formatAtoms(monthlyStackXds(selected))} XDS
+                      </div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Circulating supply through month</div>
+                      <div className="readout-value">
+                        {formatAtoms(minedPlusAvailableAtMonthStartXds(selected))} XDS
+                      </div>
+                      <div className="readout-subvalue">
+                        Treasury: {formatNumber(selected.treasuryUnlockedStartXds)} XDS available from month start
+                        <br />
+                        {formatAtoms(treasuryLockedAtMonthStartXds(selected))} XDS still locked at month start
+                      </div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Reward across month</div>
+                      <div className="readout-value">
+                        {selected.rewardStartXds} → {selected.rewardEndXds} XDS
+                      </div>
+                    </div>
+                    <div className="readout-item">
+                      <div className="readout-label">Regime at month end</div>
+                      <div className="readout-value">
+                        {selected.regimeAtEnd === "tail" ? "Tail emission" : "Base curve"}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <details className="exact-table">
@@ -519,7 +496,7 @@ export function EmissionReport() {
                           <td data-label="Cumulative totals · XDS">
                             <span className="table-cell-stack">
                               <strong>{formatAtoms(minedPlusAvailableAtMonthStartXds(row))}</strong>
-                              <small>Mined + available</small>
+                              <small>Circulating supply</small>
                               <small>Consensus-generated supply: {formatNumber(row.totalSupplyXds)}</small>
                             </span>
                           </td>

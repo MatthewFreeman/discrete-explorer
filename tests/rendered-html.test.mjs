@@ -101,12 +101,12 @@ test("server-renders the complete emission report", async () => {
   assert.match(html, /Monthly protocol dynamics/i);
   assert.match(html, /Stacked bars add any Treasury batch available from that month.s first block/i);
   assert.match(html, /Unlock entering month/i);
-  assert.match(html, /Mined \+ scheduled unlocked/i);
+  assert.match(html, /Circulating supply/i);
   assert.match(html, /Block reward/i);
   assert.match(html, /Consensus-generated supply/i);
   assert.match(html, /2,152,784\.31/);
   assert.match(html, /14,957,800\.88/);
-  assert.match(html, /not circulating supply or a holder balance/i);
+  assert.match(html, /Locked Treasury batches are excluded/i);
   assert.match(html, /All 12 protocol months in the emission chart/i);
   assert.match(html, /Tap a month or choose one below for the exact readout/i);
   assert.match(html, /1\.05M XDS reserve unlocks in 21 fixed batches/i);
@@ -253,7 +253,7 @@ test("includes accessible navigation and chart controls", async () => {
   assert.match(html, /aria-describedby="line-overlay-definition"/i);
   assert.match(
     html,
-    /data-selected="true"[^>]*aria-pressed="true"[^>]*>Mined \+ scheduled unlocked<\/button>/i,
+    /data-selected="true"[^>]*aria-pressed="true"[^>]*>Circulating supply<\/button>/i,
   );
   assert.match(
     html,
@@ -294,7 +294,7 @@ test("includes accessible navigation and chart controls", async () => {
   assert.match(css, /#unified-chart\s*\{[^}]*scroll-margin-top:/is);
 });
 
-test("anchors Today markers and exact readout to the live chain tip", async () => {
+test("anchors Today markers and swaps the shared readout to the exact live tip", async () => {
   const [response, liveSource, chartSource, reportSource, css] = await Promise.all([
     render(),
     readFile(new URL("../app/live-chain.ts", import.meta.url), "utf8"),
@@ -346,22 +346,41 @@ test("anchors Today markers and exact readout to the live chain tip", async () =
   assert.match(chartSource, /liveTip\.nextRewardXds/);
   assert.match(chartSource, /liveTip\.treasuryUnlockedXds/);
   assert.match(chartSource, /liveDateTimeLabel\(liveTip\)/);
-  assert.match(reportSource, /Generated supply at tip/);
-  assert.match(reportSource, /Treasury scheduled available/);
+  assert.match(reportSource, /const todaySnapshot = isTodaySelected \? liveChain\.snapshot : null/);
+  assert.match(reportSource, /todaySnapshot && todayCadence/);
+  assert.match(reportSource, /Actual chain tip readout/);
+  assert.match(reportSource, /Circulating supply/);
+  assert.match(reportSource, /todaySnapshot\.minedPlusScheduledUnlockedXds/);
+  assert.match(reportSource, /Treasury unlocked/);
   assert.match(reportSource, /Target-cadence drift/);
   assert.match(reportSource, /expectedHeight - snapshot\.tipHeight/);
   assert.match(reportSource, /averageSecondsPerBlock/);
   assert.match(reportSource, /Target-cadence projection · 90 s\/block/);
   assert.match(chartSource, /Target · \{period\}/);
-  assert.match(reportSource, /Height, generated supply, timestamp, and next reward come from the live node/);
-  assert.match(html, /Actual chain tip/i);
+  assert.doesNotMatch(reportSource, /function LiveTipReadout|<LiveTipReadout/);
+  assert.doesNotMatch(reportSource, /Generated supply at tip/);
   assert.equal((html.match(/Connecting to RPC/g) ?? []).length, 2);
   assert.match(css, /\.live-tip-marker line/);
   assert.match(css, /\.live-tip-callout rect/);
   assert.match(css, /\.live-tip-callout-value/);
-  assert.match(css, /\.live-tip-readout/);
-  assert.match(css, /\.live-cadence-status/);
   assert.match(css, /\.today-button/);
+  assert.doesNotMatch(
+    chartSource,
+    /className="today-button"[\s\S]{0,180}(?:data-active|aria-pressed)=/,
+  );
+  assert.doesNotMatch(css, /\.month-navigator \.today-button\[data-active=/);
+  assert.doesNotMatch(
+    css,
+    /\.month-navigator \.today-button\s*\{[^}]*\b(?:background|border-color|box-shadow|color)\s*:/i,
+  );
+  assert.equal(
+    (chartSource.match(/className="selected-month-band"[\s\S]{0,220}visibility=\{liveControl\.active \? "hidden" : "visible"\}/g) ?? []).length,
+    4,
+  );
+  assert.equal(
+    (chartSource.match(/data-selected=\{index === selected(?:Index|MonthIndex) && !liveControl\.active\}/g) ?? []).length,
+    4,
+  );
 });
 
 test("keeps the yearly emission table compact without dropping exact data", async () => {
@@ -382,7 +401,7 @@ test("keeps the yearly emission table compact without dropping exact data", asyn
   assert.match(table, /Cumulative totals · XDS/i);
   assert.match(table, /Reward · XDS \/ block/i);
   assert.match(table, /Miner issuance/i);
-  assert.match(table, /Mined \+ available/i);
+  assert.match(table, /Circulating supply/i);
   assert.match(table, /generated/i);
   assert.doesNotMatch(table, /<th>Projected dates<\/th>/i);
   assert.doesNotMatch(table, /<th>Reward start<\/th>/i);
@@ -453,7 +472,7 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.match(html, /Amber caps use the same monthly XDS scale as miner issuance/i);
   assert.equal((html.match(/class="overlay-definition-copies"/g) ?? []).length, 1);
   assert.equal((html.match(/class="line-legend-labels"/g) ?? []).length, 1);
-  assert.match(html, /data-active="true"[^>]*>Amber caps[\s\S]*?The main line combines/i);
+  assert.match(html, /data-active="true"[^>]*>Amber caps[\s\S]*?The main line shows circulating supply/i);
   assert.match(html, /aria-hidden="true"[^>]*data-active="false"[^>]*>Amber caps[\s\S]*?The main line shows reward/i);
   assert.match(css, /\.overlay-definition-copies\s*\{[^}]*display:\s*grid/is);
   assert.match(css, /\.line-legend-labels\s*\{[^}]*display:\s*grid/is);

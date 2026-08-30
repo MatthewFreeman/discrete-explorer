@@ -167,8 +167,6 @@ function MonthNavigator({
         <button
           className="today-button"
           type="button"
-          data-active={liveControl.active}
-          aria-pressed={liveControl.active}
           disabled={liveControl.disabled}
           onClick={liveControl.onClick}
         >
@@ -362,12 +360,12 @@ export function CombinedEmissionChart({
 
   const rightAxisLabel =
     lineMetric === "unlocked"
-      ? "Mined through month + Treasury at month start · XDS"
+      ? "Circulating supply · XDS"
       : "Block reward · XDS / block";
   const overlayDefinitions: Array<{ metric: ChartOverlay; text: string }> = [
     {
       metric: "unlocked",
-      text: `The main line combines miner issuance through each month with Treasury available from that month’s first block. This is not circulating supply or a holder balance.${treasuryFullyUnlockedAtYearStart ? " The reserve was fully scheduled unlocked before this year." : ""}`,
+      text: `The main line shows circulating supply: cumulative miner issuance plus Treasury available from each month’s first block. Locked Treasury batches are excluded.${treasuryFullyUnlockedAtYearStart ? " The reserve was fully scheduled unlocked before this year." : ""}`,
     },
     {
       metric: "reward",
@@ -447,7 +445,7 @@ export function CombinedEmissionChart({
       <div className="combined-chart-head">
         <div>
           <h3 id="combined-chart-heading">Monthly protocol dynamics</h3>
-          <p>Stacked bars add any Treasury batch available from that month’s first block to miner issuance. Choose the cumulative emission subtotal or block reward for the right-axis line.</p>
+          <p>Stacked bars add any Treasury batch available from that month’s first block to miner issuance. Choose circulating supply or block reward for the right-axis line.</p>
         </div>
         <fieldset className="line-metric-toggle" aria-describedby="line-overlay-definition">
           <legend>Main right-axis line</legend>
@@ -457,7 +455,7 @@ export function CombinedEmissionChart({
             aria-pressed={lineMetric === "unlocked"}
             onClick={() => onLineMetricChange("unlocked")}
           >
-            Mined + scheduled unlocked
+            Circulating supply
           </button>
           <button
             type="button"
@@ -480,7 +478,7 @@ export function CombinedEmissionChart({
           <i className={`legend-swatch line ${lineMetric}`} />
           <span className="line-legend-labels">
             <span aria-hidden={lineMetric !== "unlocked"} data-active={lineMetric === "unlocked"}>
-              Mined + scheduled unlocked · XDS
+              Circulating supply · XDS
             </span>
             <span aria-hidden={lineMetric !== "reward"} data-active={lineMetric === "reward"}>
               Block reward · XDS / block
@@ -553,6 +551,7 @@ export function CombinedEmissionChart({
             y={top}
             width={step}
             height={plotHeight}
+            visibility={liveControl.active ? "hidden" : "visible"}
           />
 
           {equalityStart !== null && equalityEnd !== null ? (
@@ -583,7 +582,7 @@ export function CombinedEmissionChart({
             const unlockHeight = minedY - totalY;
             const minerLabelY = minedY + Math.min(14, minedHeight / 2);
             return (
-              <g className="combined-bar" data-selected={index === selectedIndex} key={row.globalMonth}>
+              <g className="combined-bar" data-selected={index === selectedIndex && !liveControl.active} key={row.globalMonth}>
                 <rect
                   className="miner-segment"
                   data-mined-xds={row.minedXds}
@@ -746,6 +745,7 @@ export function CombinedEmissionChart({
             y={mobileTop}
             width={mobileStep}
             height={mobilePlotHeight}
+            visibility={liveControl.active ? "hidden" : "visible"}
           />
 
           {rows.map((row, index) => {
@@ -758,7 +758,7 @@ export function CombinedEmissionChart({
             return (
               <g
                 className="combined-bar"
-                data-selected={index === selectedIndex}
+                data-selected={index === selectedIndex && !liveControl.active}
                 key={row.globalMonth}
               >
                 <rect
@@ -1164,6 +1164,7 @@ export function TreasuryExplorer({
                 y={top}
                 width={step}
                 height={plotHeight}
+                visibility={liveControl.active ? "hidden" : "visible"}
               />
 
               {rows.map((row, index) => {
@@ -1177,7 +1178,7 @@ export function TreasuryExplorer({
                 const lockedHeight = (locked / total) * plotHeight;
                 const boundaryY = y(unlocked);
                 return (
-                  <g className="treasury-month-bar" data-selected={index === selectedMonthIndex} key={row.globalMonth}>
+                  <g className="treasury-month-bar" data-selected={index === selectedMonthIndex && !liveControl.active} key={row.globalMonth}>
                     <rect className="locked" x={x} y={top} width={barWidth} height={lockedHeight} rx={3} />
                     <rect className="unlocked" x={x} y={top + lockedHeight} width={barWidth} height={unlockedHeight} rx={3} />
                     {unlockEnteringMonth > 0 ? (
@@ -1271,6 +1272,7 @@ export function TreasuryExplorer({
                 y={mobileTop}
                 width={mobileStep}
                 height={mobilePlotHeight}
+                visibility={liveControl.active ? "hidden" : "visible"}
               />
 
               {rows.map((row, index) => {
@@ -1282,7 +1284,7 @@ export function TreasuryExplorer({
                 const unlockedHeight = (unlocked / total) * mobilePlotHeight;
                 const lockedHeight = (locked / total) * mobilePlotHeight;
                 return (
-                  <g className="treasury-month-bar" data-selected={index === selectedMonthIndex} key={row.globalMonth}>
+                  <g className="treasury-month-bar" data-selected={index === selectedMonthIndex && !liveControl.active} key={row.globalMonth}>
                     <rect className="locked" x={x} y={mobileTop} width={barWidth} height={lockedHeight} rx={2} />
                     <rect className="unlocked" x={x} y={mobileTop + lockedHeight} width={barWidth} height={unlockedHeight} rx={2} />
                     <text className="month-text" x={centerX} y={mobileBottom + 19} textAnchor="middle">{row.month}</text>

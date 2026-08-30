@@ -50,7 +50,7 @@ test("anchors Today to the live Discrete chain tip", function () {
     const html = read("emission/index.html");
     const chunks = readEmissionChunks();
 
-    assert.match(html, /Actual chain tip/);
+    assert.match(chunks, /Actual chain tip/);
     assert.match(html, />Today</);
     assert.match(chunks, /https:\/\/seed1\.discrete\.cash:9332/);
     assert.match(chunks, /https:\/\/seed2\.discrete\.cash:9332/);
@@ -61,6 +61,14 @@ test("anchors Today to the live Discrete chain tip", function () {
     assert.match(chunks, /Discrete RPC nodes disagree on the chain tip/);
     assert.match(chunks, /Live RPC snapshot expired/);
     assert.match(chunks, /let \w+=\w+-1,\w+=await [\s\S]{0,300}?getblockheaderbyheight/);
+});
+
+test("ships desktop and mobile selected-value callouts", function () {
+    const html = read("emission/index.html");
+
+    assert.equal((html.match(/class="selected-overlay-label unlocked"/g) || []).length, 2);
+    assert.equal((html.match(/class="selected-treasury-label"/g) || []).length, 2);
+    assert.match(html, /Circulating supply/);
 });
 
 test("binds every emission artifact to the reviewed source commit", function () {
@@ -85,7 +93,7 @@ test("binds every emission artifact to the reviewed source commit", function () 
         assert.equal(manifest.get(relativePath), digest, `digest mismatch: ${relativePath}`);
     }
 
-    const sourceCommit = "d85df88724fa5588aaf9df91335fe9d72c1de3bd";
+    const sourceCommit = "3df9faeaf4738310c6dd3b98b1b1c33d78d9f41d";
     const source = read("emission/SOURCE.md");
     assert.match(source, new RegExp(`MatthewFreeman/discrete-explorer/tree/${sourceCommit}`));
     assert.equal(

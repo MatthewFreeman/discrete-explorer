@@ -1528,17 +1528,8 @@ textarea {
   display: grid;
   min-width: 160px;
   padding: 7px 12px;
-  border-color: rgba(169, 255, 225, 0.48);
-  color: var(--mint-bright);
   font-family: var(--font-mono), monospace;
   line-height: 1.15;
-}
-
-.month-navigator .today-button:hover:not(:disabled),
-.month-navigator .today-button[data-active="true"] {
-  border-color: var(--mint-bright);
-  background: rgba(95, 226, 159, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(169, 255, 225, 0.24);
 }
 
 .month-navigator .today-button span,

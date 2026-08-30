@@ -7,4 +7,4 @@
 - Public route: `https://matthewfreeman.github.io/discrete-explorer/emission/`
 - Build base path: `/discrete-explorer/emission`
 
-The canonical `freemanjack4/discrete-explorer` repository and `explorer.discrete.cash/emission/` deployment are not changed by this preview.
+The canonical `discretecoin/discrete-explorer` repository and `explorer.discrete.cash/emission/` deployment are not changed by this preview.

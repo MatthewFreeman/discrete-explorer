@@ -160,7 +160,7 @@ export function EmissionReport() {
             </span>
           </a>
           <nav className="nav-links" aria-label="Report navigation">
-            <a href="#explorer">Explorer</a>
+            <a href="#explorer">Emission</a>
             <a href="#treasury">Treasury</a>
             <a href="#mechanics">Mechanics</a>
             <a href="#sources">Sources</a>

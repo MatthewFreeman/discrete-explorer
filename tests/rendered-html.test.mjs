@@ -244,6 +244,9 @@ test("includes accessible navigation and chart controls", async () => {
 
   assert.match(html, /aria-label="Report navigation"/i);
   assert.match(html, /aria-label="Mobile report navigation"/i);
+  const desktopNavigation = html.match(/<nav class="nav-links"[\s\S]*?<\/nav>/i)?.[0] ?? "";
+  assert.match(desktopNavigation, /href="#explorer">Emission<\/a>/i);
+  assert.doesNotMatch(desktopNavigation, /href="#explorer">Explorer<\/a>/i);
   assert.match(html, /Explore emission ↓/i);
   assert.match(html, /aria-labelledby="year-selector-label"/i);
   assert.doesNotMatch(html, /type="range"/i);

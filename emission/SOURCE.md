@@ -2,7 +2,7 @@
 
 This static export was built in a detached checkout of the immutable source commit:
 
-https://github.com/MatthewFreeman/discrete-explorer/tree/f26d090fa7418a6395bc18d9caafc51d03edfadc
+https://github.com/MatthewFreeman/discrete-explorer/tree/4834df1f6b2382ccfd0327bb6307c16e3762fc09
 
 Rebuild from that clean checkout with:
 

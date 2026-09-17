@@ -561,14 +561,15 @@ export function CombinedEmissionChart({
             );
           })}
 
-          <rect
-            className="selected-month-band"
-            x={left + step * selectedIndex}
-            y={top}
-            width={step}
-            height={plotHeight}
-            visibility={liveControl.active ? "hidden" : "visible"}
-          />
+          {!liveControl.active ? (
+            <rect
+              className="selected-month-band"
+              x={left + step * selectedIndex}
+              y={top}
+              width={step}
+              height={plotHeight}
+            />
+          ) : null}
 
           {equalityStart !== null && equalityEnd !== null ? (
             <g className="equality-window">
@@ -644,14 +645,15 @@ export function CombinedEmissionChart({
           })}
 
           <path className={`combined-overlay-line ${lineMetric}`} d={overlayPath} />
-          <circle
-            className={`combined-overlay-point ${lineMetric}`}
-            data-selected="true"
-            cx={selectedPoint.x}
-            cy={selectedPoint.y}
-            r={5.5}
-            visibility={liveControl.active ? "hidden" : "visible"}
-          />
+          {!liveControl.active ? (
+            <circle
+              className={`combined-overlay-point ${lineMetric}`}
+              data-selected="true"
+              cx={selectedPoint.x}
+              cy={selectedPoint.y}
+              r={5.5}
+            />
+          ) : null}
 
           {eventMarkers.map((marker) => (
             <g className={`transition-marker ${marker.kind}`} key={marker.block}>
@@ -674,39 +676,44 @@ export function CombinedEmissionChart({
             <g className="live-tip-marker">
               <line x1={liveX} x2={liveX} y1={top} y2={bottom} />
               <circle cx={liveX} cy={liveOverlayY} r={4.5} />
-              <g className="live-tip-callout" visibility={liveControl.active ? "visible" : "hidden"}>
-                <rect x={liveCalloutX} y={liveCalloutY} width={liveCalloutWidth} height={liveCalloutHeight} rx={6} />
-                <text className="live-tip-callout-kicker" x={liveCalloutX + 10} y={liveCalloutY + 15}>
-                  LIVE TIP · M{(liveTip.monthIndex ?? 0) + 1} · H {formatInteger(liveTip.tipHeight)}
-                </text>
-                <text className="live-tip-callout-value" x={liveCalloutX + 10} y={liveCalloutY + 33}>
-                  {lineMetric === "reward"
-                    ? `${formatNumber(liveTip.nextRewardXds)} XDS / BLOCK`
-                    : `${formatNumber(liveTip.minedPlusScheduledUnlockedXds)} XDS`}
-                </text>
-                <text className="live-tip-callout-time" x={liveCalloutX + 10} y={liveCalloutY + 48}>
-                  {liveDateTimeLabel(liveTip).toUpperCase()}
-                </text>
-              </g>
+              {liveControl.active ? (
+                <g className="live-tip-callout">
+                  <rect x={liveCalloutX} y={liveCalloutY} width={liveCalloutWidth} height={liveCalloutHeight} rx={6} />
+                  <text className="live-tip-callout-kicker" x={liveCalloutX + 10} y={liveCalloutY + 15}>
+                    LIVE TIP · M{(liveTip.monthIndex ?? 0) + 1} · H {formatInteger(liveTip.tipHeight)}
+                  </text>
+                  <text className="live-tip-callout-value" x={liveCalloutX + 10} y={liveCalloutY + 33}>
+                    {lineMetric === "reward"
+                      ? `${formatNumber(liveTip.nextRewardXds)} XDS / BLOCK`
+                      : `${formatNumber(liveTip.minedPlusScheduledUnlockedXds)} XDS`}
+                  </text>
+                  <text className="live-tip-callout-time" x={liveCalloutX + 10} y={liveCalloutY + 48}>
+                    {liveDateTimeLabel(liveTip).toUpperCase()}
+                  </text>
+                </g>
+              ) : null}
             </g>
           ) : null}
 
-          <line
-            className="selection-guide"
-            x1={left + step * (selectedIndex + 0.5)}
-            x2={left + step * (selectedIndex + 0.5)}
-            y1={top}
-            y2={bottom}
-            visibility={liveControl.active ? "hidden" : "visible"}
-          />
-          <g className={`selected-overlay-label ${lineMetric}`} visibility={liveControl.active ? "hidden" : "visible"}>
-            <rect x={selectedOverlayLabelX} y={selectedOverlayLabelY} width={valueLabelWidth} height={valueLabelHeight} rx={5} />
-            <text x={selectedOverlayLabelX + valueLabelWidth / 2} y={selectedOverlayLabelY + 16} textAnchor="middle">
-              {lineMetric === "reward"
-                ? `${Number(rows[selectedIndex].rewardEndXds).toFixed(2)}`
-                : formatCompact(overlayValues[selectedIndex + 1])}
-            </text>
-          </g>
+          {!liveControl.active ? (
+            <>
+              <line
+                className="selection-guide"
+                x1={left + step * (selectedIndex + 0.5)}
+                x2={left + step * (selectedIndex + 0.5)}
+                y1={top}
+                y2={bottom}
+              />
+              <g className={`selected-overlay-label ${lineMetric}`}>
+                <rect x={selectedOverlayLabelX} y={selectedOverlayLabelY} width={valueLabelWidth} height={valueLabelHeight} rx={5} />
+                <text x={selectedOverlayLabelX + valueLabelWidth / 2} y={selectedOverlayLabelY + 16} textAnchor="middle">
+                  {lineMetric === "reward"
+                    ? `${Number(rows[selectedIndex].rewardEndXds).toFixed(2)}`
+                    : formatCompact(overlayValues[selectedIndex + 1])}
+                </text>
+              </g>
+            </>
+          ) : null}
           {rows.map((row, index) => (
             <rect
               className="month-hit-target"
@@ -755,14 +762,15 @@ export function CombinedEmissionChart({
             );
           })}
 
-          <rect
-            className="selected-month-band"
-            x={mobileLeft + mobileStep * selectedIndex}
-            y={mobileTop}
-            width={mobileStep}
-            height={mobilePlotHeight}
-            visibility={liveControl.active ? "hidden" : "visible"}
-          />
+          {!liveControl.active ? (
+            <rect
+              className="selected-month-band"
+              x={mobileLeft + mobileStep * selectedIndex}
+              y={mobileTop}
+              width={mobileStep}
+              height={mobilePlotHeight}
+            />
+          ) : null}
 
           {rows.map((row, index) => {
             const barWidth = mobileStep * 0.54;
@@ -808,14 +816,15 @@ export function CombinedEmissionChart({
             className={`combined-overlay-line ${lineMetric}`}
             d={mobileOverlayPath}
           />
-          <circle
-            className={`combined-overlay-point ${lineMetric}`}
-            data-selected="true"
-            cx={mobileSelectedPoint.x}
-            cy={mobileSelectedPoint.y}
-            r={4}
-            visibility={liveControl.active ? "hidden" : "visible"}
-          />
+          {!liveControl.active ? (
+            <circle
+              className={`combined-overlay-point ${lineMetric}`}
+              data-selected="true"
+              cx={mobileSelectedPoint.x}
+              cy={mobileSelectedPoint.y}
+              r={4}
+            />
+          ) : null}
 
           {mobileEventMarkers.map((marker) => (
             <g className={`transition-marker ${marker.kind}`} key={marker.block}>
@@ -827,49 +836,54 @@ export function CombinedEmissionChart({
             <g className="live-tip-marker">
               <line x1={mobileLiveX} x2={mobileLiveX} y1={mobileTop} y2={mobileBottom} />
               <circle cx={mobileLiveX} cy={mobileLiveOverlayY} r={3.5} />
-              <g className="live-tip-callout mobile" visibility={liveControl.active ? "visible" : "hidden"}>
-                <rect x={mobileLiveCalloutX} y={mobileLiveCalloutY} width={mobileLiveCalloutWidth} height={mobileLiveCalloutHeight} rx={5} />
-                <text className="live-tip-callout-kicker" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 14}>
-                  LIVE TIP · M{(liveTip.monthIndex ?? 0) + 1} · H {formatInteger(liveTip.tipHeight)}
-                </text>
-                <text className="live-tip-callout-value" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 31}>
-                  {lineMetric === "reward"
-                    ? `${formatNumber(liveTip.nextRewardXds)} XDS / BLOCK`
-                    : `${formatNumber(liveTip.minedPlusScheduledUnlockedXds)} XDS`}
-                </text>
-                <text className="live-tip-callout-time" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 45}>
-                  {liveDateTimeLabel(liveTip).toUpperCase()}
-                </text>
-              </g>
+              {liveControl.active ? (
+                <g className="live-tip-callout mobile">
+                  <rect x={mobileLiveCalloutX} y={mobileLiveCalloutY} width={mobileLiveCalloutWidth} height={mobileLiveCalloutHeight} rx={5} />
+                  <text className="live-tip-callout-kicker" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 14}>
+                    LIVE TIP · M{(liveTip.monthIndex ?? 0) + 1} · H {formatInteger(liveTip.tipHeight)}
+                  </text>
+                  <text className="live-tip-callout-value" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 31}>
+                    {lineMetric === "reward"
+                      ? `${formatNumber(liveTip.nextRewardXds)} XDS / BLOCK`
+                      : `${formatNumber(liveTip.minedPlusScheduledUnlockedXds)} XDS`}
+                  </text>
+                  <text className="live-tip-callout-time" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 45}>
+                    {liveDateTimeLabel(liveTip).toUpperCase()}
+                  </text>
+                </g>
+              ) : null}
             </g>
           ) : null}
 
-          <line
-            className="selection-guide"
-            x1={mobileLeft + mobileStep * (selectedIndex + 0.5)}
-            x2={mobileLeft + mobileStep * (selectedIndex + 0.5)}
-            y1={mobileTop}
-            y2={mobileBottom}
-            visibility={liveControl.active ? "hidden" : "visible"}
-          />
-          <g className={`selected-overlay-label ${lineMetric}`} visibility={liveControl.active ? "hidden" : "visible"}>
-            <rect
-              x={mobileSelectedOverlayLabelX}
-              y={mobileSelectedOverlayLabelY}
-              width={valueLabelWidth}
-              height={valueLabelHeight}
-              rx={5}
-            />
-            <text
-              x={mobileSelectedOverlayLabelX + valueLabelWidth / 2}
-              y={mobileSelectedOverlayLabelY + 16}
-              textAnchor="middle"
-            >
-              {lineMetric === "reward"
-                ? `${Number(rows[selectedIndex].rewardEndXds).toFixed(2)}`
-                : formatCompact(overlayValues[selectedIndex + 1])}
-            </text>
-          </g>
+          {!liveControl.active ? (
+            <>
+              <line
+                className="selection-guide"
+                x1={mobileLeft + mobileStep * (selectedIndex + 0.5)}
+                x2={mobileLeft + mobileStep * (selectedIndex + 0.5)}
+                y1={mobileTop}
+                y2={mobileBottom}
+              />
+              <g className={`selected-overlay-label ${lineMetric}`}>
+                <rect
+                  x={mobileSelectedOverlayLabelX}
+                  y={mobileSelectedOverlayLabelY}
+                  width={valueLabelWidth}
+                  height={valueLabelHeight}
+                  rx={5}
+                />
+                <text
+                  x={mobileSelectedOverlayLabelX + valueLabelWidth / 2}
+                  y={mobileSelectedOverlayLabelY + 16}
+                  textAnchor="middle"
+                >
+                  {lineMetric === "reward"
+                    ? `${Number(rows[selectedIndex].rewardEndXds).toFixed(2)}`
+                    : formatCompact(overlayValues[selectedIndex + 1])}
+                </text>
+              </g>
+            </>
+          ) : null}
 
           {rows.map((row, index) => (
             <rect

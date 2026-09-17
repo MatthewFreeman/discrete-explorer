@@ -99,10 +99,10 @@ export function EmissionReport() {
   const transitionYearIndex = years.findIndex(
     (year) => tailBlock >= year.blockStart && tailBlock <= year.blockEnd,
   );
-  const [manualPosition, setManualPosition] = useState<{
-    yearIndex: number;
-    monthIndex: number;
-  } | null>(null);
+  const [selection, setSelection] = useState<
+    | { kind: "today" }
+    | { kind: "month"; yearIndex: number; monthIndex: number }
+  >({ kind: "today" });
   const [chartOverlay, setChartOverlay] = useState<ChartOverlay>("unlocked");
   const liveChain = useLiveChain();
   const livePosition =
@@ -114,21 +114,23 @@ export function EmissionReport() {
           monthIndex: liveChain.snapshot.monthIndex,
         }
       : null;
-  const selectedYearIndex = manualPosition?.yearIndex ?? livePosition?.yearIndex ?? 0;
-  const selectedMonthIndex = manualPosition?.monthIndex ?? livePosition?.monthIndex ?? 0;
+  const selectedYearIndex =
+    selection.kind === "month" ? selection.yearIndex : livePosition?.yearIndex ?? 0;
+  const selectedMonthIndex =
+    selection.kind === "month" ? selection.monthIndex : livePosition?.monthIndex ?? 0;
   const selectedYear = years[selectedYearIndex];
   const selected = selectedYear.months[selectedMonthIndex];
   const selectedYearEnd = selectedYear.months[selectedYear.months.length - 1];
-  const isTodaySelected = manualPosition === null && livePosition !== null;
+  const isTodaySelected = selection.kind === "today" && livePosition !== null;
   const todaySnapshot = isTodaySelected ? liveChain.snapshot : null;
   const todayCadence = todaySnapshot ? targetCadenceState(todaySnapshot) : null;
 
   const selectYear = (index: number) => {
-    setManualPosition({ yearIndex: index, monthIndex: selectedMonthIndex });
+    setSelection({ kind: "month", yearIndex: index, monthIndex: selectedMonthIndex });
   };
 
   const selectMonth = (index: number) => {
-    setManualPosition({ yearIndex: selectedYearIndex, monthIndex: index });
+    setSelection({ kind: "month", yearIndex: selectedYearIndex, monthIndex: index });
   };
 
   const selectLiveTip = () => {
@@ -138,7 +140,7 @@ export function EmissionReport() {
       snapshot.yearIndex !== null &&
       snapshot.monthIndex !== null
     ) {
-      setManualPosition(null);
+      setSelection({ kind: "today" });
     }
   };
 

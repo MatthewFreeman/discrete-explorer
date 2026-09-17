@@ -306,6 +306,10 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   const html = await response.text();
+  const combinedChartSource = chartSource.slice(
+    chartSource.indexOf("export function CombinedEmissionChart"),
+    chartSource.indexOf("export function TreasuryExplorer"),
+  );
 
   assert.match(liveSource, /https:\/\/seed1\.discrete\.cash:9332/);
   assert.match(liveSource, /https:\/\/seed2\.discrete\.cash:9332/);
@@ -336,8 +340,13 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
   assert.match(chartSource, /isTodaySelected &&/);
   assert.match(chartSource, /manualPosition === null &&/);
   assert.match(
-    chartSource,
-    /className="live-tip-callout" visibility=\{liveControl\.active \? "visible" : "hidden"\}/,
+    combinedChartSource,
+    /liveControl\.active \? \(\s*<g className="live-tip-callout">/,
+  );
+  assert.match(combinedChartSource, /!liveControl\.active \? \(\s*<circle/);
+  assert.doesNotMatch(
+    combinedChartSource,
+    /className="live-tip-callout(?: mobile)?" visibility=/,
   );
   assert.match(chartSource, /className="live-tip-marker"/);
   assert.match(chartSource, /className="live-tip-callout"/);
@@ -349,6 +358,9 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
   assert.match(chartSource, /liveTip\.nextRewardXds/);
   assert.match(chartSource, /liveTip\.treasuryUnlockedXds/);
   assert.match(chartSource, /liveDateTimeLabel\(liveTip\)/);
+  assert.match(reportSource, /\| \{ kind: "today" \}/);
+  assert.match(reportSource, /selection\.kind === "today" && livePosition !== null/);
+  assert.match(reportSource, /setSelection\(\{ kind: "today" \}\)/);
   assert.match(reportSource, /const todaySnapshot = isTodaySelected \? liveChain\.snapshot : null/);
   assert.match(reportSource, /todaySnapshot && todayCadence/);
   assert.match(reportSource, /Actual chain tip readout/);
@@ -376,9 +388,9 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
     css,
     /\.month-navigator \.today-button\s*\{[^}]*\b(?:background|border-color|box-shadow|color)\s*:/i,
   );
-  assert.equal(
-    (chartSource.match(/className="selected-month-band"[\s\S]{0,220}visibility=\{liveControl\.active \? "hidden" : "visible"\}/g) ?? []).length,
-    4,
+  assert.doesNotMatch(
+    combinedChartSource,
+    /className="selected-month-band"[\s\S]{0,220}visibility=\{liveControl\.active \? "hidden" : "visible"\}/,
   );
   assert.equal(
     (chartSource.match(/data-selected=\{index === selected(?:Index|MonthIndex) && !liveControl\.active\}/g) ?? []).length,
@@ -386,9 +398,9 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
   );
   assert.match(chartSource, /const mobileSelectedOverlayLabelX = Math\.max\(/);
   assert.match(chartSource, /x=\{mobileSelectedOverlayLabelX\}/);
-  assert.equal(
-    (chartSource.match(/className=\{`selected-overlay-label \$\{lineMetric\}`\} visibility=\{liveControl\.active \? "hidden" : "visible"\}/g) ?? []).length,
-    2,
+  assert.doesNotMatch(
+    combinedChartSource,
+    /className=\{`selected-overlay-label \$\{lineMetric\}`\} visibility=/,
   );
 });
 

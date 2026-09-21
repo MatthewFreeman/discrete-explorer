@@ -894,11 +894,7 @@ export function CombinedEmissionChart({
               r={14}
               onMouseEnter={() => setActiveStartYear(year.year)}
               onMouseLeave={() => setActiveStartYear(null)}
-              onClick={() =>
-                setActiveStartYear((activeYear) =>
-                  activeYear === year.year ? null : year.year,
-                )
-              }
+              onClick={() => setActiveStartYear(year.year)}
             />
           ) : null}
         </svg>

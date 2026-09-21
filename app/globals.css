@@ -1189,6 +1189,22 @@ textarea {
   r: 5.5;
 }
 
+.overlay-start-marker circle {
+  fill: var(--bg-deep);
+  stroke: var(--ink-soft);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.overlay-start-marker text {
+  fill: var(--ink-soft);
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
 .combined-chart-svg .selection-guide,
 .treasury-chart-svg .selection-guide {
   stroke: rgba(169, 255, 225, 0.52);

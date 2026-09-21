@@ -315,6 +315,8 @@ export function CombinedEmissionChart({
   const displayedOverlayPoints = overlayPoints;
   const overlayPath = linePath(displayedOverlayPoints);
   const overlayArea = `${overlayPath} L ${displayedOverlayPoints[displayedOverlayPoints.length - 1].x} ${bottom} L ${displayedOverlayPoints[0].x} ${bottom} Z`;
+  const overlayStartPoint = overlayPoints[0];
+  const overlayStartLabel = year.year === 1 ? "GENESIS" : "YEAR START";
   const selectedPoint = overlayPoints[selectedIndex + 1];
 
   const blockX = (blockHeight: number) => {
@@ -426,7 +428,7 @@ export function CombinedEmissionChart({
   const overlayDefinitions: Array<{ metric: ChartOverlay; text: string }> = [
     {
       metric: "unlocked",
-      text: `The main line shows circulating supply: cumulative miner issuance plus Treasury available from each month’s first block. Locked Treasury batches are excluded.${treasuryFullyUnlockedAtYearStart ? " The reserve was fully scheduled unlocked before this year." : ""}`,
+      text: `The main line shows circulating supply: cumulative miner issuance plus Treasury available from each month’s first block. It begins at the exact year-start value; in Year 1 that is the 50K batch available at genesis. Each month point is the exact month-end value. Locked Treasury batches are excluded.${treasuryFullyUnlockedAtYearStart ? " The reserve was fully scheduled unlocked before this year." : ""}`,
     },
     {
       metric: "reward",
@@ -468,6 +470,7 @@ export function CombinedEmissionChart({
   const mobileSelectedPoint = mobileOverlayPoints[selectedIndex + 1];
   const mobileDisplayedOverlayPoints = mobileOverlayPoints;
   const mobileOverlayPath = linePath(mobileDisplayedOverlayPoints);
+  const mobileOverlayStartPoint = mobileOverlayPoints[0];
   const mobileBlockX = (blockHeight: number) => {
     if (blockHeight < year.blockStart || blockHeight > year.blockEnd) return null;
     return (
@@ -727,6 +730,17 @@ export function CombinedEmissionChart({
           })}
 
           <path className={`combined-overlay-line ${lineMetric}`} d={overlayPath} />
+          {lineMetric === "unlocked" ? (
+            <g className="overlay-start-marker" data-start-xds={overlayValues[0]}>
+              <circle cx={overlayStartPoint.x} cy={overlayStartPoint.y} r={4} />
+              <text
+                x={overlayStartPoint.x + 7}
+                y={Math.max(top + 12, overlayStartPoint.y - 8)}
+              >
+                {overlayStartLabel} · {formatCompact(overlayValues[0])}
+              </text>
+            </g>
+          ) : null}
           {!liveControl.active ? (
             <circle
               className={`combined-overlay-point ${lineMetric}`}
@@ -898,6 +912,17 @@ export function CombinedEmissionChart({
             className={`combined-overlay-line ${lineMetric}`}
             d={mobileOverlayPath}
           />
+          {lineMetric === "unlocked" ? (
+            <g className="overlay-start-marker" data-start-xds={overlayValues[0]}>
+              <circle cx={mobileOverlayStartPoint.x} cy={mobileOverlayStartPoint.y} r={3} />
+              <text
+                x={mobileOverlayStartPoint.x + 6}
+                y={Math.max(mobileTop + 11, mobileOverlayStartPoint.y - 7)}
+              >
+                {overlayStartLabel} · {formatCompact(overlayValues[0])}
+              </text>
+            </g>
+          ) : null}
           {!liveControl.active ? (
             <circle
               className={`combined-overlay-point ${lineMetric}`}

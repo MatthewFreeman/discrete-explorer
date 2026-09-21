@@ -227,6 +227,9 @@ test("renders Treasury unlocks as a separate monthly stacked-bar segment", async
   assert.equal((html.match(/data-unlock-xds="50000\.00"/g) ?? []).length, 8);
   assert.doesNotMatch(html, /data-unlock-xds="0\.00"/);
   assert.equal((html.match(/class="unlock-value-label"/g) ?? []).length, 4);
+  assert.equal((html.match(/class="overlay-start-marker"/g) ?? []).length, 2);
+  assert.equal((html.match(/data-start-xds="50000"/g) ?? []).length, 2);
+  assert.match(html, /GENESIS[\s\S]*?50\.0K/);
   assert.match(html, /MONTHLY MINED \+ UNLOCK ENTERING MONTH · XDS/);
   assert.match(html, /Treasury unlock entering month:/i);
   assert.match(html, /Stacked total:/i);
@@ -502,10 +505,18 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.doesNotMatch(combinedSource, /mobileLeft \+ mobilePlotWidth\} \$\{mobileDisplayedOverlayPoints/);
   assert.doesNotMatch(source, /unlock > 0 \? minedY \+ 14/);
   assert.match(source, /const monthBarEdgeX =/);
+  assert.match(source, /const overlayStartPoint = overlayPoints\[0\]/);
+  assert.match(source, /const mobileOverlayStartPoint = mobileOverlayPoints\[0\]/);
   assert.match(source, /DESKTOP_EMISSION_BAR_WIDTH_RATIO,\s*"end"/);
   assert.match(source, /MOBILE_EMISSION_BAR_WIDTH_RATIO,\s*"end"/);
   assert.match(source, /x1=\{selectedPoint\.x\}/);
   assert.match(source, /x1=\{mobileSelectedPoint\.x\}/);
+  assert.match(
+    source,
+    /It begins at the exact year-start value; in Year 1 that is the 50K batch available at genesis/,
+  );
+  assert.match(css, /\.overlay-start-marker circle\s*\{[^}]*stroke:\s*var\(--ink-soft\)/is);
+  assert.match(css, /\.overlay-start-marker text\s*\{[^}]*font-family:\s*var\(--font-mono\)/is);
   assert.equal((html.match(/class="treasury-step-line"/g) ?? []).length, 2);
   assert.equal((html.match(/class="treasury-month-bar"/g) ?? []).length, 24);
   assert.equal((html.match(/class="treasury-unlock-cap"/g) ?? []).length, 4);

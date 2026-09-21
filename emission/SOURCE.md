@@ -3,7 +3,7 @@
 - Status: pre-PR test deployment; not the canonical Explorer artifact
 - Source repository: https://github.com/MatthewFreeman/discrete-explorer
 - Source branch: `xds-emission-source`
-- Source commit: `3df38e988abfe68d37cad9c45415109898a546cb`
+- Source commit: `bab42d78b3eeae87b5425a4699d4a8799c3e6726`
 - Public route: `https://matthewfreeman.github.io/discrete-explorer/emission/`
 - Build base path: `/discrete-explorer/emission`
 

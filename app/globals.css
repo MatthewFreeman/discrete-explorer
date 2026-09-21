@@ -1196,13 +1196,10 @@ textarea {
   pointer-events: none;
 }
 
-.overlay-start-marker text {
-  fill: var(--ink-soft);
-  font-family: var(--font-mono), monospace;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  pointer-events: none;
+.overlay-start-hit-target {
+  fill: transparent;
+  cursor: crosshair;
+  pointer-events: all;
 }
 
 .combined-chart-svg .selection-guide,

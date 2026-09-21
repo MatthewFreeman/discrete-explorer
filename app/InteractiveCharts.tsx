@@ -257,6 +257,8 @@ export function CombinedEmissionChart({
   onSelectToday: () => void;
   onRefreshLive: () => void;
 }) {
+  const [activeStartYear, setActiveStartYear] = useState<number | null>(null);
+  const isStartPointActive = activeStartYear === year.year;
   const rows = year.months;
   const treasuryTotal = Number(emissionData.meta.treasuryReserve.totalXds);
   const width = 1_020;
@@ -316,8 +318,23 @@ export function CombinedEmissionChart({
   const overlayPath = linePath(displayedOverlayPoints);
   const overlayArea = `${overlayPath} L ${displayedOverlayPoints[displayedOverlayPoints.length - 1].x} ${bottom} L ${displayedOverlayPoints[0].x} ${bottom} Z`;
   const overlayStartPoint = overlayPoints[0];
-  const overlayStartLabel = year.year === 1 ? "GENESIS" : "YEAR START";
   const selectedPoint = overlayPoints[selectedIndex + 1];
+  const selectMonth = (index: number) => {
+    setActiveStartYear(null);
+    onSelect(index);
+  };
+  const selectToday = () => {
+    setActiveStartYear(null);
+    onSelectToday();
+  };
+  const refreshLive = () => {
+    setActiveStartYear(null);
+    onRefreshLive();
+  };
+  const selectLineMetric = (metric: ChartOverlay) => {
+    setActiveStartYear(null);
+    onLineMetricChange(metric);
+  };
 
   const blockX = (blockHeight: number) => {
     if (blockHeight < year.blockStart || blockHeight > year.blockEnd) return null;
@@ -375,21 +392,21 @@ export function CombinedEmissionChart({
           detail: `${liveDateLabel(liveTip)} · M${(liveTip.monthIndex ?? 0) + 1} · H ${formatInteger(liveTip.tipHeight)}`,
           disabled: false,
           label: "Today",
-          onClick: onSelectToday,
+          onClick: selectToday,
         }
       : {
           active: false,
           detail: "Outside 10-year model",
           disabled: true,
           label: "Today",
-          onClick: onSelectToday,
+          onClick: selectToday,
         }
     : {
         active: false,
         detail: liveStatus === "error" ? "RPC quorum unconfirmed" : "Connecting to RPC",
         disabled: liveStatus !== "error",
         label: liveStatus === "error" ? "Retry live" : "Today",
-        onClick: onRefreshLive,
+        onClick: refreshLive,
       };
 
   const equalityStart = blockX(emissionData.meta.tailAtLeastBase.blockHeight);
@@ -525,6 +542,17 @@ export function CombinedEmissionChart({
     top,
     Math.min(bottom - valueLabelHeight, selectedPoint.y - 14),
   );
+  const startOverlayLabelX = Math.min(
+    overlayStartPoint.x + 8,
+    width - right - valueLabelWidth,
+  );
+  const startOverlayLabelY = Math.max(
+    top,
+    Math.min(
+      bottom - valueLabelHeight,
+      overlayStartPoint.y - valueLabelHeight - 8,
+    ),
+  );
   const mobileSelectedOverlayLabelX = Math.max(
     mobileLeft,
     Math.min(
@@ -541,6 +569,20 @@ export function CombinedEmissionChart({
         : mobileSelectedPoint.y + 8,
     ),
   );
+  const mobileStartOverlayLabelX = Math.max(
+    mobileLeft,
+    Math.min(
+      mobileOverlayStartPoint.x + 8,
+      mobileWidth - mobileRight - valueLabelWidth,
+    ),
+  );
+  const mobileStartOverlayLabelY = Math.max(
+    mobileTop,
+    Math.min(
+      mobileBottom - valueLabelHeight,
+      mobileOverlayStartPoint.y - valueLabelHeight - 8,
+    ),
+  );
   return (
     <section className="combined-chart" id="unified-chart" aria-labelledby="combined-chart-heading" tabIndex={-1}>
       <div className="combined-chart-head">
@@ -554,7 +596,7 @@ export function CombinedEmissionChart({
             type="button"
             data-selected={lineMetric === "unlocked"}
             aria-pressed={lineMetric === "unlocked"}
-            onClick={() => onLineMetricChange("unlocked")}
+            onClick={() => selectLineMetric("unlocked")}
           >
             Circulating supply
           </button>
@@ -562,7 +604,7 @@ export function CombinedEmissionChart({
             type="button"
             data-selected={lineMetric === "reward"}
             aria-pressed={lineMetric === "reward"}
-            onClick={() => onLineMetricChange("reward")}
+            onClick={() => selectLineMetric("reward")}
           >
             Block reward
           </button>
@@ -646,7 +688,7 @@ export function CombinedEmissionChart({
             );
           })}
 
-          {!liveControl.active ? (
+          {!liveControl.active && !isStartPointActive ? (
             <rect
               className="selected-month-band"
               x={left + step * selectedIndex}
@@ -731,17 +773,39 @@ export function CombinedEmissionChart({
 
           <path className={`combined-overlay-line ${lineMetric}`} d={overlayPath} />
           {lineMetric === "unlocked" ? (
-            <g className="overlay-start-marker" data-start-xds={overlayValues[0]}>
-              <circle cx={overlayStartPoint.x} cy={overlayStartPoint.y} r={4} />
-              <text
-                x={overlayStartPoint.x + 7}
-                y={Math.max(top + 12, overlayStartPoint.y - 8)}
-              >
-                {overlayStartLabel} · {formatCompact(overlayValues[0])}
-              </text>
+            <g
+              className="overlay-start-marker"
+              data-active={isStartPointActive}
+              data-start-xds={overlayValues[0]}
+            >
+              <circle
+                className="combined-overlay-point unlocked overlay-start-point"
+                data-selected={isStartPointActive}
+                cx={overlayStartPoint.x}
+                cy={overlayStartPoint.y}
+                r={4}
+              />
+              {isStartPointActive ? (
+                <g className="selected-overlay-label unlocked start-overlay-label">
+                  <rect
+                    x={startOverlayLabelX}
+                    y={startOverlayLabelY}
+                    width={valueLabelWidth}
+                    height={valueLabelHeight}
+                    rx={5}
+                  />
+                  <text
+                    x={startOverlayLabelX + valueLabelWidth / 2}
+                    y={startOverlayLabelY + 16}
+                    textAnchor="middle"
+                  >
+                    {formatCompact(overlayValues[0])}
+                  </text>
+                </g>
+              ) : null}
             </g>
           ) : null}
-          {!liveControl.active ? (
+          {!liveControl.active && !isStartPointActive ? (
             <circle
               className={`combined-overlay-point ${lineMetric}`}
               data-selected="true"
@@ -772,7 +836,7 @@ export function CombinedEmissionChart({
             <g className="live-tip-marker">
               <line x1={liveX} x2={liveX} y1={top} y2={bottom} />
               <circle cx={liveX} cy={liveOverlayY} r={4.5} />
-              {liveControl.active ? (
+              {liveControl.active && !isStartPointActive ? (
                 <g className="live-tip-callout">
                   <rect x={liveCalloutX} y={liveCalloutY} width={liveCalloutWidth} height={liveCalloutHeight} rx={6} />
                   <text className="live-tip-callout-kicker" x={liveCalloutX + 10} y={liveCalloutY + 15}>
@@ -791,7 +855,7 @@ export function CombinedEmissionChart({
             </g>
           ) : null}
 
-          {!liveControl.active ? (
+          {!liveControl.active && !isStartPointActive ? (
             <>
               <line
                 className="selection-guide"
@@ -818,10 +882,25 @@ export function CombinedEmissionChart({
               y={top}
               width={step}
               height={plotHeight + 38}
-              onMouseEnter={() => onSelect(index)}
-              onClick={() => onSelect(index)}
+              onMouseEnter={() => selectMonth(index)}
+              onClick={() => selectMonth(index)}
             />
           ))}
+          {lineMetric === "unlocked" ? (
+            <circle
+              className="overlay-start-hit-target"
+              cx={overlayStartPoint.x}
+              cy={overlayStartPoint.y}
+              r={14}
+              onMouseEnter={() => setActiveStartYear(year.year)}
+              onMouseLeave={() => setActiveStartYear(null)}
+              onClick={() =>
+                setActiveStartYear((activeYear) =>
+                  activeYear === year.year ? null : year.year,
+                )
+              }
+            />
+          ) : null}
         </svg>
       </div>
 
@@ -858,7 +937,7 @@ export function CombinedEmissionChart({
             );
           })}
 
-          {!liveControl.active ? (
+          {!liveControl.active && !isStartPointActive ? (
             <rect
               className="selected-month-band"
               x={mobileLeft + mobileStep * selectedIndex}
@@ -913,17 +992,39 @@ export function CombinedEmissionChart({
             d={mobileOverlayPath}
           />
           {lineMetric === "unlocked" ? (
-            <g className="overlay-start-marker" data-start-xds={overlayValues[0]}>
-              <circle cx={mobileOverlayStartPoint.x} cy={mobileOverlayStartPoint.y} r={3} />
-              <text
-                x={mobileOverlayStartPoint.x + 6}
-                y={Math.max(mobileTop + 11, mobileOverlayStartPoint.y - 7)}
-              >
-                {overlayStartLabel} · {formatCompact(overlayValues[0])}
-              </text>
+            <g
+              className="overlay-start-marker"
+              data-active={isStartPointActive}
+              data-start-xds={overlayValues[0]}
+            >
+              <circle
+                className="combined-overlay-point unlocked overlay-start-point"
+                data-selected={isStartPointActive}
+                cx={mobileOverlayStartPoint.x}
+                cy={mobileOverlayStartPoint.y}
+                r={3}
+              />
+              {isStartPointActive ? (
+                <g className="selected-overlay-label unlocked start-overlay-label">
+                  <rect
+                    x={mobileStartOverlayLabelX}
+                    y={mobileStartOverlayLabelY}
+                    width={valueLabelWidth}
+                    height={valueLabelHeight}
+                    rx={5}
+                  />
+                  <text
+                    x={mobileStartOverlayLabelX + valueLabelWidth / 2}
+                    y={mobileStartOverlayLabelY + 16}
+                    textAnchor="middle"
+                  >
+                    {formatCompact(overlayValues[0])}
+                  </text>
+                </g>
+              ) : null}
             </g>
           ) : null}
-          {!liveControl.active ? (
+          {!liveControl.active && !isStartPointActive ? (
             <circle
               className={`combined-overlay-point ${lineMetric}`}
               data-selected="true"
@@ -943,7 +1044,7 @@ export function CombinedEmissionChart({
             <g className="live-tip-marker">
               <line x1={mobileLiveX} x2={mobileLiveX} y1={mobileTop} y2={mobileBottom} />
               <circle cx={mobileLiveX} cy={mobileLiveOverlayY} r={3.5} />
-              {liveControl.active ? (
+              {liveControl.active && !isStartPointActive ? (
                 <g className="live-tip-callout mobile">
                   <rect x={mobileLiveCalloutX} y={mobileLiveCalloutY} width={mobileLiveCalloutWidth} height={mobileLiveCalloutHeight} rx={5} />
                   <text className="live-tip-callout-kicker" x={mobileLiveCalloutX + 8} y={mobileLiveCalloutY + 14}>
@@ -962,7 +1063,7 @@ export function CombinedEmissionChart({
             </g>
           ) : null}
 
-          {!liveControl.active ? (
+          {!liveControl.active && !isStartPointActive ? (
             <>
               <line
                 className="selection-guide"
@@ -1000,9 +1101,22 @@ export function CombinedEmissionChart({
               y={mobileTop}
               width={mobileStep}
               height={mobilePlotHeight + 26}
-              onClick={() => onSelect(index)}
+              onClick={() => selectMonth(index)}
             />
           ))}
+          {lineMetric === "unlocked" ? (
+            <circle
+              className="overlay-start-hit-target"
+              cx={mobileOverlayStartPoint.x}
+              cy={mobileOverlayStartPoint.y}
+              r={12}
+              onClick={() =>
+                setActiveStartYear((activeYear) =>
+                  activeYear === year.year ? null : year.year,
+                )
+              }
+            />
+          ) : null}
         </svg>
         {mobileEventMarkers.length > 0 ? (
           <div className="mobile-transition-events" aria-label="Protocol transition events in this year">
@@ -1022,7 +1136,7 @@ export function CombinedEmissionChart({
         label="Emission"
         value={selectedIndex}
         period={rows[selectedIndex].period}
-        onChange={onSelect}
+        onChange={selectMonth}
         liveControl={liveControl}
       />
     </section>

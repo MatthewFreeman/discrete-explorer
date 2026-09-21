@@ -229,7 +229,11 @@ test("renders Treasury unlocks as a separate monthly stacked-bar segment", async
   assert.equal((html.match(/class="unlock-value-label"/g) ?? []).length, 4);
   assert.equal((html.match(/class="overlay-start-marker"/g) ?? []).length, 2);
   assert.equal((html.match(/data-start-xds="50000"/g) ?? []).length, 2);
-  assert.match(html, /GENESIS[\s\S]*?50\.0K/);
+  assert.equal((html.match(/overlay-start-point/g) ?? []).length, 2);
+  assert.equal((html.match(/overlay-start-hit-target/g) ?? []).length, 2);
+  for (const marker of html.match(/<g class="overlay-start-marker"[\s\S]*?<\/g>/g) ?? []) {
+    assert.doesNotMatch(marker, /<text/);
+  }
   assert.match(html, /MONTHLY MINED \+ UNLOCK ENTERING MONTH · XDS/);
   assert.match(html, /Treasury unlock entering month:/i);
   assert.match(html, /Stacked total:/i);
@@ -350,9 +354,12 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
   assert.match(chartSource, /manualPosition === null &&/);
   assert.match(
     combinedChartSource,
-    /liveControl\.active \? \(\s*<g className="live-tip-callout">/,
+    /liveControl\.active && !isStartPointActive \? \(\s*<g className="live-tip-callout">/,
   );
-  assert.match(combinedChartSource, /!liveControl\.active \? \(\s*<circle/);
+  assert.match(
+    combinedChartSource,
+    /!liveControl\.active && !isStartPointActive \? \(\s*<circle/,
+  );
   assert.doesNotMatch(
     combinedChartSource,
     /className="live-tip-callout(?: mobile)?" visibility=/,
@@ -507,6 +514,15 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.match(source, /const monthBarEdgeX =/);
   assert.match(source, /const overlayStartPoint = overlayPoints\[0\]/);
   assert.match(source, /const mobileOverlayStartPoint = mobileOverlayPoints\[0\]/);
+  assert.match(source, /const \[activeStartYear, setActiveStartYear\] = useState<number \| null>\(null\)/);
+  assert.match(source, /const isStartPointActive = activeStartYear === year\.year/);
+  assert.match(source, /className="overlay-start-hit-target"/);
+  assert.match(source, /onMouseEnter=\{\(\) => setActiveStartYear\(year\.year\)\}/);
+  assert.match(
+    source,
+    /onClick=\{\(\) =>\s*setActiveStartYear\(\(activeYear\) =>\s*activeYear === year\.year \? null : year\.year,?\s*\)\s*\}/,
+  );
+  assert.doesNotMatch(source, /overlayStartLabel/);
   assert.match(source, /DESKTOP_EMISSION_BAR_WIDTH_RATIO,\s*"end"/);
   assert.match(source, /MOBILE_EMISSION_BAR_WIDTH_RATIO,\s*"end"/);
   assert.match(source, /x1=\{selectedPoint\.x\}/);
@@ -516,7 +532,7 @@ test("shows boundary unlocks in the following protocol month", async () => {
     /It begins at the exact year-start value; in Year 1 that is the 50K batch available at genesis/,
   );
   assert.match(css, /\.overlay-start-marker circle\s*\{[^}]*stroke:\s*var\(--ink-soft\)/is);
-  assert.match(css, /\.overlay-start-marker text\s*\{[^}]*font-family:\s*var\(--font-mono\)/is);
+  assert.match(css, /\.overlay-start-hit-target\s*\{[^}]*fill:\s*transparent[^}]*pointer-events:\s*all/is);
   assert.equal((html.match(/class="treasury-step-line"/g) ?? []).length, 2);
   assert.equal((html.match(/class="treasury-month-bar"/g) ?? []).length, 24);
   assert.equal((html.match(/class="treasury-unlock-cap"/g) ?? []).length, 4);

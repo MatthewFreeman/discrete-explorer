@@ -395,11 +395,14 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
   assert.match(css, /\.live-tip-callout rect/);
   assert.match(css, /\.live-tip-callout-value/);
   assert.match(css, /\.today-button/);
-  assert.doesNotMatch(
+  assert.match(
     chartSource,
-    /className="today-button"[\s\S]{0,180}(?:data-active|aria-pressed)=/,
+    /className="today-button"[\s\S]{0,180}data-active=\{liveControl\.active\}[\s\S]{0,80}aria-pressed=\{liveControl\.active\}/,
   );
-  assert.doesNotMatch(css, /\.month-navigator \.today-button\[data-active=/);
+  assert.match(
+    css,
+    /\.month-navigator \.today-button\[data-active="true"\]\s*\{[^}]*border-color:[^}]*background:[^}]*box-shadow:/is,
+  );
   assert.doesNotMatch(
     css,
     /\.month-navigator \.today-button\s*\{[^}]*\b(?:background|border-color|box-shadow|color)\s*:/i,

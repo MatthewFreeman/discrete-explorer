@@ -213,6 +213,8 @@ function MonthNavigator({
         <button
           className="today-button"
           type="button"
+          data-active={liveControl.active}
+          aria-pressed={liveControl.active}
           disabled={liveControl.disabled}
           onClick={liveControl.onClick}
         >

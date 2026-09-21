@@ -198,7 +198,7 @@ for (let globalMonth = 0; globalMonth < MONTHS; globalMonth += 1) {
   const reserveUnlockedEnd = reserveUnlockedAtomsAtHeight(height);
   const reserveUnlockEnteringMonth =
     globalMonth === 0
-      ? 0n
+      ? reserveUnlockedStart
       : reserveUnlockedStart - previousReserveUnlockedStart;
   months.push({
     year,

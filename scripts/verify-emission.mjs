@@ -220,7 +220,7 @@ for (const year of stored.years) {
     const unlockedAtEnd = reserveUnlockedAtomsAtHeight(row.blockEnd);
     const unlockEnteringMonth =
       row.globalMonth === 1
-        ? 0n
+        ? unlockedAtStart
         : unlockedAtStart - previousUnlockedAtMonthStart;
     assert.equal(row.treasuryUnlockedStartXds, formatAtoms(unlockedAtStart));
     assert.equal(
@@ -357,8 +357,9 @@ assert.deepEqual(
   stored.years[0].months
     .filter((row) => parseAtoms(row.treasuryUnlockEnteringMonthXds) > 0n)
     .map((row) => row.month),
-  [4, 7, 10],
+  [1, 4, 7, 10],
 );
+assert.equal(stored.years[0].months[0].treasuryUnlockEnteringMonthXds, "50000.00");
 assert.equal(stored.years[1].months[0].treasuryUnlockEnteringMonthXds, "50000.00");
 
 const year1End = stored.years[0].months.at(-1);

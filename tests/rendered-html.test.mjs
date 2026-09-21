@@ -208,8 +208,9 @@ test("derives cumulative mined plus scheduled-unlocked Treasury without counting
     year1.months
       .filter((row) => xdsAtoms(row.treasuryUnlockEnteringMonthXds) > 0n)
       .map((row) => row.month),
-    [4, 7, 10],
+    [1, 4, 7, 10],
   );
+  assert.equal(year1.months[0].treasuryUnlockEnteringMonthXds, "50000.00");
   assert.equal(year1.months[2].treasuryUnlockEnteringMonthXds, "0.00");
   assert.equal(year1.months[3].treasuryUnlockEnteringMonthXds, "50000.00");
 });
@@ -222,10 +223,10 @@ test("renders Treasury unlocks as a separate monthly stacked-bar segment", async
   const html = await response.text();
 
   assert.equal((html.match(/class="miner-segment"/g) ?? []).length, 24);
-  assert.equal((html.match(/class="unlock-segment"/g) ?? []).length, 6);
-  assert.equal((html.match(/data-unlock-xds="50000\.00"/g) ?? []).length, 6);
+  assert.equal((html.match(/class="unlock-segment"/g) ?? []).length, 8);
+  assert.equal((html.match(/data-unlock-xds="50000\.00"/g) ?? []).length, 8);
   assert.doesNotMatch(html, /data-unlock-xds="0\.00"/);
-  assert.equal((html.match(/class="unlock-value-label"/g) ?? []).length, 3);
+  assert.equal((html.match(/class="unlock-value-label"/g) ?? []).length, 4);
   assert.match(html, /MONTHLY MINED \+ UNLOCK ENTERING MONTH · XDS/);
   assert.match(html, /Treasury unlock entering month:/i);
   assert.match(html, /Stacked total:/i);
@@ -486,8 +487,8 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.match(source, /x: index === 0 \? mobileLeft : mobileLeft \+ mobileStep \* \(index - 0\.5\)/);
   assert.equal((html.match(/class="treasury-step-line"/g) ?? []).length, 2);
   assert.equal((html.match(/class="treasury-month-bar"/g) ?? []).length, 24);
-  assert.equal((html.match(/class="treasury-unlock-cap"/g) ?? []).length, 3);
-  assert.equal((html.match(/class="unlock-label"/g) ?? []).length, 3);
+  assert.equal((html.match(/class="treasury-unlock-cap"/g) ?? []).length, 4);
+  assert.equal((html.match(/class="unlock-label"/g) ?? []).length, 4);
   assert.equal((html.match(/class="combined-overlay-line unlocked"/g) ?? []).length, 2);
   assert.equal((html.match(/class="combined-overlay-point unlocked"/g) ?? []).length, 2);
   assert.equal((html.match(/class="selected-treasury-label"/g) ?? []).length, 2);

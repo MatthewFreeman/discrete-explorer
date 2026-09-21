@@ -514,7 +514,7 @@
           "tailRewardEndXds": "0.17",
           "regimeAtEnd": "base",
           "treasuryUnlockedStartXds": "50000.00",
-          "treasuryUnlockEnteringMonthXds": "0.00",
+          "treasuryUnlockEnteringMonthXds": "50000.00",
           "treasuryUnlockedEndXds": "50000.00",
           "treasuryUnlockedThisMonthXds": "0.00",
           "treasuryLockedEndXds": "1000000.00",

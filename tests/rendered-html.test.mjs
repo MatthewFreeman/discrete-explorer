@@ -332,11 +332,11 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
   assert.match(liveSource, /minerIssuanceAtoms \+ treasuryUnlockedAtoms/);
   assert.match(
     chartSource,
-    /liveXAlongMonthEndLine\(liveTip, year, left, step\)/,
+    /liveXAlongMonthEndLine\(\s*liveTip,\s*year,\s*left,\s*step,\s*DESKTOP_EMISSION_BAR_WIDTH_RATIO/,
   );
   assert.match(
     chartSource,
-    /liveXAlongMonthEndLine\(liveTip, year, mobileLeft, mobileStep\)/,
+    /liveXAlongMonthEndLine\(\s*liveTip,\s*year,\s*mobileLeft,\s*mobileStep,\s*MOBILE_EMISSION_BAR_WIDTH_RATIO/,
   );
   assert.match(
     chartSource,
@@ -451,8 +451,26 @@ test("shows boundary unlocks in the following protocol month", async () => {
   const html = await response.text();
   const year1 = stored.years[0];
   const combinedSource = source.slice(0, source.indexOf("export function TreasuryExplorer"));
+  const desktopEmissionChart =
+    html.match(/<svg class="combined-chart-svg"[\s\S]*?<\/svg>/)?.[0] ?? "";
+  const mobileEmissionChart =
+    html.match(/<svg class="mobile-chart-svg mobile-emission-chart"[\s\S]*?<\/svg>/)?.[0] ?? "";
   const exactScheduleTable =
     html.match(/<table class="data-table treasury-data-table">[\s\S]*?Exact genesis Treasury Reserve unlock schedule[\s\S]*?<\/table>/i)?.[0] ?? "";
+
+  for (const chart of [desktopEmissionChart, mobileEmissionChart]) {
+    const bar = chart.match(
+      /<rect class="miner-segment"[^>]*?x="([^"]+)"[^>]*?width="([^"]+)"/,
+    );
+    const point = chart.match(
+      /<circle class="combined-overlay-point unlocked"[^>]*?cx="([^"]+)"/,
+    );
+    assert.ok(bar && point, "selected month bar and endpoint must render");
+    assert.ok(
+      Math.abs(Number(point[1]) - (Number(bar[1]) + Number(bar[2]))) < 1e-9,
+      "month-end point must sit on the selected bar's right edge",
+    );
+  }
 
   assert.match(source, /const centerX = left \+ step \* \(index \+ 0\.5\)/);
   assert.match(source, /const centerX = mobileLeft \+ mobileStep \* \(index \+ 0\.5\)/);
@@ -471,9 +489,9 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.match(combinedSource, /niceCeiling\(Math\.max\(\.\.\.monthlyFlowValues\) \* 1\.04\)/);
   assert.match(source, /const minerLabelY = minedY \+ Math\.min\(14, minedHeight \/ 2\)/);
   assert.match(source, /dominantBaseline="middle"/);
-  assert.match(source, /const displayedOverlayPoints = overlayPoints\.slice\(1\)/);
+  assert.match(source, /const displayedOverlayPoints = overlayPoints;/);
   assert.match(source, /const overlayPath = linePath\(displayedOverlayPoints\)/);
-  assert.match(source, /const mobileDisplayedOverlayPoints = mobileOverlayPoints\.slice\(1\)/);
+  assert.match(source, /const mobileDisplayedOverlayPoints = mobileOverlayPoints;/);
   assert.match(source, /const mobileOverlayPath = linePath\(mobileDisplayedOverlayPoints\)/);
   assert.equal(
     (source.match(/onMouseEnter=\{\(\) => (?:onSelect|selectMonth)\(index\)\}/g) ?? []).length,
@@ -483,8 +501,11 @@ test("shows boundary unlocks in the following protocol month", async () => {
   assert.doesNotMatch(combinedSource, /left \+ plotWidth\} \$\{displayedOverlayPoints/);
   assert.doesNotMatch(combinedSource, /mobileLeft \+ mobilePlotWidth\} \$\{mobileDisplayedOverlayPoints/);
   assert.doesNotMatch(source, /unlock > 0 \? minedY \+ 14/);
-  assert.match(source, /x: index === 0 \? left : left \+ step \* \(index - 0\.5\)/);
-  assert.match(source, /x: index === 0 \? mobileLeft : mobileLeft \+ mobileStep \* \(index - 0\.5\)/);
+  assert.match(source, /const monthBarEdgeX =/);
+  assert.match(source, /DESKTOP_EMISSION_BAR_WIDTH_RATIO,\s*"end"/);
+  assert.match(source, /MOBILE_EMISSION_BAR_WIDTH_RATIO,\s*"end"/);
+  assert.match(source, /x1=\{selectedPoint\.x\}/);
+  assert.match(source, /x1=\{mobileSelectedPoint\.x\}/);
   assert.equal((html.match(/class="treasury-step-line"/g) ?? []).length, 2);
   assert.equal((html.match(/class="treasury-month-bar"/g) ?? []).length, 24);
   assert.equal((html.match(/class="treasury-unlock-cap"/g) ?? []).length, 4);

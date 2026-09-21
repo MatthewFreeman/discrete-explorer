@@ -112,6 +112,7 @@ const liveXAlongMonthEndLine = (
   year: YearData,
   left: number,
   step: number,
+  barWidthRatio: number,
 ) => {
   if (snapshot.yearIndex !== year.year - 1 || snapshot.monthIndex === null) {
     return null;
@@ -129,11 +130,28 @@ const liveXAlongMonthEndLine = (
       ? 1
       : (snapshot.tipHeight - row.blockStart) /
         (row.blockEnd - row.blockStart);
-  const monthEndX = left + step * (snapshot.monthIndex + 0.5);
+  const monthEndX =
+    left + step * (snapshot.monthIndex + 0.5 + barWidthRatio / 2);
   const previousMonthEndX =
-    snapshot.monthIndex === 0 ? left : monthEndX - step;
+    snapshot.monthIndex === 0
+      ? left + step * (0.5 - barWidthRatio / 2)
+      : monthEndX - step;
   return previousMonthEndX + progress * (monthEndX - previousMonthEndX);
 };
+
+const DESKTOP_EMISSION_BAR_WIDTH_RATIO = 0.56;
+const MOBILE_EMISSION_BAR_WIDTH_RATIO = 0.54;
+
+const monthBarEdgeX = (
+  left: number,
+  step: number,
+  monthIndex: number,
+  barWidthRatio: number,
+  edge: "start" | "end",
+) =>
+  left +
+  step *
+    (monthIndex + 0.5 + (edge === "end" ? barWidthRatio / 2 : -barWidthRatio / 2));
 
 type LiveControl = {
   active: boolean;
@@ -282,10 +300,19 @@ export function CombinedEmissionChart({
   const overlayY = (value: number) =>
     bottom - ((value - overlayMin) / (overlayMax - overlayMin)) * plotHeight;
   const overlayPoints = overlayValues.map((value, index) => ({
-    x: index === 0 ? left : left + step * (index - 0.5),
+    x:
+      index === 0
+        ? monthBarEdgeX(left, step, 0, DESKTOP_EMISSION_BAR_WIDTH_RATIO, "start")
+        : monthBarEdgeX(
+            left,
+            step,
+            index - 1,
+            DESKTOP_EMISSION_BAR_WIDTH_RATIO,
+            "end",
+          ),
     y: overlayY(value),
   }));
-  const displayedOverlayPoints = overlayPoints.slice(1);
+  const displayedOverlayPoints = overlayPoints;
   const overlayPath = linePath(displayedOverlayPoints);
   const overlayArea = `${overlayPath} L ${displayedOverlayPoints[displayedOverlayPoints.length - 1].x} ${bottom} L ${displayedOverlayPoints[0].x} ${bottom} Z`;
   const selectedPoint = overlayPoints[selectedIndex + 1];
@@ -298,7 +325,13 @@ export function CombinedEmissionChart({
     );
   };
   const liveX = liveTip
-    ? liveXAlongMonthEndLine(liveTip, year, left, step)
+    ? liveXAlongMonthEndLine(
+        liveTip,
+        year,
+        left,
+        step,
+        DESKTOP_EMISSION_BAR_WIDTH_RATIO,
+      )
     : null;
   const liveOverlayValue = liveTip
     ? Number(
@@ -414,11 +447,26 @@ export function CombinedEmissionChart({
     mobileBottom -
     ((value - overlayMin) / (overlayMax - overlayMin)) * mobilePlotHeight;
   const mobileOverlayPoints = overlayValues.map((value, index) => ({
-    x: index === 0 ? mobileLeft : mobileLeft + mobileStep * (index - 0.5),
+    x:
+      index === 0
+        ? monthBarEdgeX(
+            mobileLeft,
+            mobileStep,
+            0,
+            MOBILE_EMISSION_BAR_WIDTH_RATIO,
+            "start",
+          )
+        : monthBarEdgeX(
+            mobileLeft,
+            mobileStep,
+            index - 1,
+            MOBILE_EMISSION_BAR_WIDTH_RATIO,
+            "end",
+          ),
     y: mobileOverlayY(value),
   }));
   const mobileSelectedPoint = mobileOverlayPoints[selectedIndex + 1];
-  const mobileDisplayedOverlayPoints = mobileOverlayPoints.slice(1);
+  const mobileDisplayedOverlayPoints = mobileOverlayPoints;
   const mobileOverlayPath = linePath(mobileDisplayedOverlayPoints);
   const mobileBlockX = (blockHeight: number) => {
     if (blockHeight < year.blockStart || blockHeight > year.blockEnd) return null;
@@ -432,7 +480,13 @@ export function CombinedEmissionChart({
     x: mobileBlockX(marker.block) ?? mobileLeft,
   }));
   const mobileLiveX = liveTip
-    ? liveXAlongMonthEndLine(liveTip, year, mobileLeft, mobileStep)
+    ? liveXAlongMonthEndLine(
+        liveTip,
+        year,
+        mobileLeft,
+        mobileStep,
+        MOBILE_EMISSION_BAR_WIDTH_RATIO,
+      )
     : null;
   const mobileLiveOverlayY =
     mobileLiveX !== null && liveOverlayValue !== null
@@ -616,7 +670,7 @@ export function CombinedEmissionChart({
           {lineMetric === "unlocked" ? <path className="combined-area" d={overlayArea} /> : null}
 
           {rows.map((row, index) => {
-            const barWidth = step * 0.56;
+            const barWidth = step * DESKTOP_EMISSION_BAR_WIDTH_RATIO;
             const x = left + step * (index + 0.5);
             const mined = Number(row.minedXds);
             const unlock = Number(row.treasuryUnlockEnteringMonthXds);
@@ -727,8 +781,8 @@ export function CombinedEmissionChart({
             <>
               <line
                 className="selection-guide"
-                x1={left + step * (selectedIndex + 0.5)}
-                x2={left + step * (selectedIndex + 0.5)}
+                x1={selectedPoint.x}
+                x2={selectedPoint.x}
                 y1={top}
                 y2={bottom}
               />
@@ -801,7 +855,7 @@ export function CombinedEmissionChart({
           ) : null}
 
           {rows.map((row, index) => {
-            const barWidth = mobileStep * 0.54;
+            const barWidth = mobileStep * MOBILE_EMISSION_BAR_WIDTH_RATIO;
             const x = mobileLeft + mobileStep * (index + 0.5);
             const mined = Number(row.minedXds);
             const unlock = Number(row.treasuryUnlockEnteringMonthXds);
@@ -887,8 +941,8 @@ export function CombinedEmissionChart({
             <>
               <line
                 className="selection-guide"
-                x1={mobileLeft + mobileStep * (selectedIndex + 0.5)}
-                x2={mobileLeft + mobileStep * (selectedIndex + 0.5)}
+                x1={mobileSelectedPoint.x}
+                x2={mobileSelectedPoint.x}
                 y1={mobileTop}
                 y2={mobileBottom}
               />

@@ -107,6 +107,34 @@ const liveXWithinMonthBar = (
   return centerX - barWidth / 2 + progress * barWidth;
 };
 
+const liveXAlongMonthEndLine = (
+  snapshot: LiveChainSnapshot,
+  year: YearData,
+  left: number,
+  step: number,
+) => {
+  if (snapshot.yearIndex !== year.year - 1 || snapshot.monthIndex === null) {
+    return null;
+  }
+  const row = year.months[snapshot.monthIndex];
+  if (
+    !row ||
+    snapshot.tipHeight < row.blockStart ||
+    snapshot.tipHeight > row.blockEnd
+  ) {
+    return null;
+  }
+  const progress =
+    row.blockEnd === row.blockStart
+      ? 1
+      : (snapshot.tipHeight - row.blockStart) /
+        (row.blockEnd - row.blockStart);
+  const monthEndX = left + step * (snapshot.monthIndex + 0.5);
+  const previousMonthEndX =
+    snapshot.monthIndex === 0 ? left : monthEndX - step;
+  return previousMonthEndX + progress * (monthEndX - previousMonthEndX);
+};
+
 type LiveControl = {
   active: boolean;
   detail: string;
@@ -270,7 +298,7 @@ export function CombinedEmissionChart({
     );
   };
   const liveX = liveTip
-    ? liveXWithinMonthBar(liveTip, year, left, step, 0.56)
+    ? liveXAlongMonthEndLine(liveTip, year, left, step)
     : null;
   const liveOverlayValue = liveTip
     ? Number(
@@ -404,7 +432,7 @@ export function CombinedEmissionChart({
     x: mobileBlockX(marker.block) ?? mobileLeft,
   }));
   const mobileLiveX = liveTip
-    ? liveXWithinMonthBar(liveTip, year, mobileLeft, mobileStep, 0.54)
+    ? liveXAlongMonthEndLine(liveTip, year, mobileLeft, mobileStep)
     : null;
   const mobileLiveOverlayY =
     mobileLiveX !== null && liveOverlayValue !== null

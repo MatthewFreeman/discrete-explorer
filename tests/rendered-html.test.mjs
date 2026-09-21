@@ -331,12 +331,17 @@ test("anchors Today markers and swaps the shared readout to the exact live tip",
   assert.match(liveSource, /minerIssuanceAtoms \+ treasuryUnlockedAtoms/);
   assert.match(
     chartSource,
-    /liveXWithinMonthBar\(liveTip, year, left, step, 0\.56\)/,
+    /liveXAlongMonthEndLine\(liveTip, year, left, step\)/,
   );
   assert.match(
     chartSource,
-    /centerX - barWidth \/ 2 \+ progress \* barWidth/,
+    /liveXAlongMonthEndLine\(liveTip, year, mobileLeft, mobileStep\)/,
   );
+  assert.match(
+    chartSource,
+    /previousMonthEndX \+ progress \* \(monthEndX - previousMonthEndX\)/,
+  );
+  assert.doesNotMatch(combinedChartSource, /liveXWithinMonthBar/);
   assert.match(chartSource, /isTodaySelected &&/);
   assert.match(chartSource, /manualPosition === null &&/);
   assert.match(

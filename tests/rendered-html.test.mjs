@@ -1,27 +1,64 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import test from "node:test";
+import { readFile, readdir } from "node:fs/promises";
+import { join } from "node:path";
+import test, { after } from "node:test";
+import { fileURLToPath } from "node:url";
+import { convertV4MiniflareOptions, Miniflare } from "miniflare";
 import ts from "typescript";
 
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
+const workerDirectory = fileURLToPath(new URL("../dist/server/", import.meta.url));
+let miniflare;
 
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
+async function collectJavaScriptModules(directory) {
+  const modules = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      modules.push(...(await collectJavaScriptModules(path)));
+    } else if (entry.isFile() && entry.name.endsWith(".js")) {
+      modules.push({ type: "ESModule", path });
+    }
+  }
+  return modules;
+}
+
+async function getMiniflare() {
+  if (miniflare) {
+    return miniflare;
+  }
+
+  const workerConfig = JSON.parse(
+    await readFile(new URL("../dist/server/wrangler.json", import.meta.url), "utf8"),
   );
+  const entryPath = join(workerDirectory, workerConfig.main);
+  const discoveredModules = await collectJavaScriptModules(workerDirectory);
+  const modules = [
+    { type: "ESModule", path: entryPath },
+    ...discoveredModules.filter((module) => module.path !== entryPath),
+  ];
+  miniflare = new Miniflare(
+    convertV4MiniflareOptions({
+      modules,
+      modulesRoot: workerDirectory,
+      compatibilityDate: workerConfig.compatibility_date,
+      compatibilityFlags: workerConfig.compatibility_flags,
+      serviceBindings: {
+        ASSETS: async () => new Response("Not found", { status: 404 }),
+      },
+    }),
+  );
+  return miniflare;
+}
+
+after(async () => {
+  await miniflare?.dispose();
+});
+
+async function render() {
+  const runtime = await getMiniflare();
+  return runtime.dispatchFetch("http://localhost/", {
+    headers: { accept: "text/html" },
+  });
 }
 
 function xdsAtoms(value) {

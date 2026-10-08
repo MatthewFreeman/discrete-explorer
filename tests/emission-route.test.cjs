@@ -96,7 +96,7 @@ test("binds every emission artifact to the reviewed source commit", function () 
         assert.equal(manifest.get(relativePath), digest, `digest mismatch: ${relativePath}`);
     }
 
-    const sourceCommit = "11e165e656da49c6f14ac9f569778fcef147e71f";
+    const sourceCommit = "540b8fdfb9e45ba20d73bc077904e08f6bfdb633";
     const source = read("emission/SOURCE.md");
     assert.match(source, new RegExp(`MatthewFreeman/discrete-explorer/tree/${sourceCommit}`));
     assert.equal(

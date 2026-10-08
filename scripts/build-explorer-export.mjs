@@ -128,12 +128,14 @@ the code-derived static model.
   await cp(cleanOutputRoot, outputRoot, { recursive: true });
 } finally {
   if (worktreeAdded) {
-    spawnSync("git", ["worktree", "remove", "--force", cleanRoot], {
+    spawnSync("git", ["-c", "core.longpaths=true", "worktree", "remove", "--force", cleanRoot], {
       cwd: root,
       stdio: "inherit",
     });
   }
-  await rm(temporaryRoot, { recursive: true, force: true });
+  const removableTemporaryRoot =
+    process.platform === "win32" ? path.toNamespacedPath(temporaryRoot) : temporaryRoot;
+  await rm(removableTemporaryRoot, { recursive: true, force: true });
 }
 
 if (process.exitCode) process.exit(process.exitCode);

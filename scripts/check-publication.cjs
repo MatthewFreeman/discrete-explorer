@@ -7,12 +7,13 @@ const path = require('node:path');
 // Code points keep restricted labels out of the publication policy itself.
 const words = [
     [99, 111, 100, 101, 120],
-    [111, 112, 101, 110, 97, 105],
-    [99, 104, 97, 116, 103, 112, 116],
     [1082, 1086, 1076, 1077, 1082, 1089],
 ].map(points => String.fromCodePoint(...points));
+const providers = [[111, 112, 101, 110, 97, 105], [99, 104, 97, 116, 103, 112, 116]]
+    .map(points => String.fromCodePoint(...points));
 const restricted = new RegExp(words.join('|'), 'ig');
-const localPath = /\b[a-z]:[\\/](?:Users|Documents and Settings)[\\/]|\/(?:Users|home)\/[^/\s]+\//i;
+const creditedProvider = new RegExp(`\\b(?:generated|authored|written|created|assisted)\\s+(?:by|with|using)\\s+(?:${providers.join('|')})\\b`, 'i');
+const localPath = /\b[a-z]:[\\/][a-z0-9_. -]{2,}[\\/]|\/(?:Users|home)\/[^/\s]+\//i;
 const trailers = /^(?:co-authored-by|author|generated-by):/im;
 const guidance = /(?:^|\/)(?:AGENTS(?:\.[^/]*)?\.md|SKILL\.md)$/i;
 const zero = /^0+$/;
@@ -28,6 +29,7 @@ function safe(value) {
 function checkText(value, label, violations) {
     restricted.lastIndex = 0;
     if (restricted.test(value)) violations.push(`Restricted label in ${safe(label)}`);
+    if (creditedProvider.test(value)) violations.push(`Generated attribution in ${safe(label)}`);
     if (localPath.test(value)) violations.push(`Local filesystem path in ${safe(label)}`);
     if (trailers.test(value)) violations.push(`Attribution trailer in ${safe(label)}`);
 }

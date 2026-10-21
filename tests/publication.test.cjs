@@ -1,0 +1,119 @@
+'use strict';
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { execFileSync, spawnSync } = require('node:child_process');
+const { mkdtempSync, rmSync, writeFileSync, readFileSync } = require('node:fs');
+const { join, resolve } = require('node:path');
+const { tmpdir } = require('node:os');
+const checker = resolve(__dirname, '../scripts/check-publication.cjs');
+const restrictedLabel = String.fromCodePoint(99, 111, 100, 101, 120);
+
+function fixture(t) {
+    const cwd = mkdtempSync(join(tmpdir(), 'publication-'));
+    t.after(() => rmSync(cwd, { recursive: true, force: true }));
+    const git = (...args) => execFileSync('git', args, { cwd, stdio: 'pipe' }).toString().trim();
+    git('init', '-b', 'main');
+    git('config', 'user.name', 'Example Maintainer');
+    git('config', 'user.email', 'maintainer@example.org');
+    git('config', 'core.autocrlf', 'false');
+    writeFileSync(join(cwd, 'README.md'), 'Project source\n');
+    git('add', '.'); git('commit', '-m', 'Initial source');
+    const check = (args = [], options = {}) => spawnSync(process.execPath, [checker, ...args], {
+        cwd, encoding: 'utf8', ...options,
+        env: { ...process.env, PUBLICATION_REF: '', PUBLICATION_TITLE: '', PUBLICATION_BODY: '', ...options.env },
+    });
+    return { cwd, git, check };
+}
+
+test('publication check accepts clean committed content and ignores untracked local guidance', t => {
+    const f = fixture(t);
+    writeFileSync(join(f.cwd, 'AGENTS.md'), restrictedLabel);
+    writeFileSync(join(f.cwd, 'image.bin'), Buffer.from([0, 78, 58, 47, 1, 255]));
+    writeFileSync(join(f.cwd, 'url.js'), 'new URL(value, "x:/"); const time = /\\d\\d:\\d\\d/;');
+    f.git('add', 'image.bin', 'url.js'); f.git('commit', '-m', 'Add image and URL fixture');
+    assert.equal(f.check().status, 0);
+});
+
+test('publication check rejects committed labels, filenames, local paths, and guidance', t => {
+    for (const [name, content] of [
+        ['note.txt', restrictedLabel.toUpperCase()],
+        [restrictedLabel + '.txt', 'content'],
+        ['path.txt', String.fromCharCode(67, 58, 92) + 'Users' + String.fromCharCode(92) + 'Example'],
+        ['AGENTS.md', 'Local guidance'],
+        ['wide.txt', Buffer.from(restrictedLabel, 'utf16le')],
+    ]) {
+        const f = fixture(t);
+        const bytes = name === 'wide.txt' ? Buffer.concat([Buffer.from([255, 254]), content]) : content;
+        writeFileSync(join(f.cwd, name), bytes);
+        f.git('add', '.'); f.git('commit', '-m', 'Add fixture');
+        const result = f.check();
+        assert.equal(result.status, 1, name);
+        assert.ok(!result.stderr.toLowerCase().includes(restrictedLabel));
+    }
+});
+
+test('publication check rejects historical metadata after a later clean commit', t => {
+    const f = fixture(t);
+    f.git('commit', '--allow-empty', '-m', 'Merge ' + restrictedLabel + '/example');
+    f.git('commit', '--allow-empty', '-m', 'Clean follow-up');
+    assert.equal(f.check().status, 1);
+});
+
+test('publication check covers branch names, pull request text and attribution trailers', t => {
+    const f = fixture(t);
+    for (const env of [
+        { PUBLICATION_REF: restrictedLabel + '/example' },
+        { PUBLICATION_TITLE: 'Generated with ' + restrictedLabel },
+        { PUBLICATION_BODY: 'Review by ' + restrictedLabel },
+        { PUBLICATION_BODY: 'Co-authored-by: Example <maintainer@example.org>' },
+    ]) assert.equal(f.check([], { env }).status, 1);
+});
+
+test('pre-push check inspects outgoing non-HEAD refs and permits deletions', t => {
+    const f = fixture(t), clean = f.git('rev-parse', 'HEAD');
+    f.git('checkout', '-b', 'feature/example');
+    writeFileSync(join(f.cwd, 'note.txt'), restrictedLabel);
+    f.git('add', '.'); f.git('commit', '-m', 'Add fixture');
+    const rejected = f.git('rev-parse', 'HEAD');
+    f.git('checkout', 'main');
+    const empty = '0'.repeat(40);
+    assert.equal(f.check(['--pre-push'], { input: `refs/heads/feature/example ${rejected} refs/heads/feature/example ${empty}\n` }).status, 1);
+    assert.equal(f.check(['--pre-push'], { input: `refs/heads/main ${clean} refs/heads/main ${empty}\n` }).status, 0);
+    assert.equal(f.check(['--pre-push'], { input: `(delete) ${empty} refs/heads/${restrictedLabel}/old ${rejected}\n` }).status, 0);
+    assert.equal(f.check(['--pre-push'], { input: 'invalid\n' }).status, 1);
+});
+
+test('publication check inspects annotated tags before pushing', t => {
+    const f = fixture(t), empty = '0'.repeat(40);
+    f.git('tag', '-a', 'v1', '-m', restrictedLabel);
+    const oid = f.git('rev-parse', 'v1');
+    assert.equal(f.check(['--ref', 'v1']).status, 1);
+    assert.equal(f.check(['--pre-push'], { input: `refs/tags/v1 ${oid} refs/tags/v1 ${empty}\n` }).status, 1);
+});
+
+test('installed hook blocks the actual push and does not overwrite existing hooks', t => {
+    const f = fixture(t), remote = mkdtempSync(join(tmpdir(), 'publication-remote-'));
+    t.after(() => rmSync(remote, { recursive: true, force: true }));
+    execFileSync('git', ['init', '--bare', remote], { stdio: 'pipe' });
+    f.git('remote', 'add', 'example', remote);
+    assert.equal(f.check(['--install-hook']).status, 0);
+    f.git('push', 'example', 'main');
+    f.git('commit', '--allow-empty', '-m', restrictedLabel);
+    const push = spawnSync('git', ['push', 'example', 'main'], { cwd: f.cwd, encoding: 'utf8' });
+    assert.notEqual(push.status, 0);
+    assert.match(push.stderr, /Publication|Restricted/);
+    const worktree = mkdtempSync(join(tmpdir(), 'publication-worktree-'));
+    t.after(() => rmSync(worktree, { recursive: true, force: true }));
+    f.git('worktree', 'add', '-b', 'feature/worktree', worktree, 'HEAD~1');
+    execFileSync('git', ['commit', '--allow-empty', '-m', restrictedLabel], { cwd: worktree, stdio: 'pipe' });
+    const worktreePush = spawnSync('git', ['push', 'example', 'HEAD:refs/heads/feature/worktree'], { cwd: worktree, encoding: 'utf8' });
+    assert.notEqual(worktreePush.status, 0);
+    assert.match(worktreePush.stderr, /Publication|Restricted/);
+    const hook = join(f.cwd, '.git', 'hooks', 'pre-push');
+    writeFileSync(hook, '#!/bin/sh\nexit 0\n');
+    assert.equal(f.check(['--install-hook']).status, 1);
+    assert.equal(readFileSync(hook, 'utf8'), '#!/bin/sh\nexit 0\n');
+    f.git('config', 'core.hooksPath', 'custom-hooks');
+    assert.equal(f.check(['--install-hook']).status, 1);
+});
